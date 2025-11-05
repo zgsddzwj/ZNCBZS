@@ -1,0 +1,107 @@
+# 模型配置
+models:
+  # OpenAI配置
+  openai:
+    base_url: "${OPENAI_BASE_URL}"
+    api_key: "${OPENAI_API_KEY}"
+    model: "gpt-4-turbo-preview"
+    temperature: 0.3
+    max_tokens: 2000
+    timeout: 30
+
+  # DeepSeek配置
+  deepseek:
+    base_url: "${DEEPSEEK_BASE_URL}"
+    api_key: "${DEEPSEEK_API_KEY}"
+    model: "deepseek-chat"
+    temperature: 0.2
+    max_tokens: 4000
+    timeout: 30
+
+  # 本地微调模型配置
+  local:
+    model_path: "./models/financial_llm"
+    device: "cuda" # 或 "cpu"
+    batch_size: 4
+    max_length: 2048
+
+# 检索配置
+retrieval:
+  # 向量检索
+  vector:
+    top_k: 10
+    similarity_threshold: 0.7
+    rerank_top_k: 5
+
+  # 关键词检索
+  keyword:
+    top_k: 20
+    min_score: 0.5
+
+  # 混合检索
+  hybrid:
+    vector_weight: 0.7
+    keyword_weight: 0.3
+
+# 知识库配置
+knowledge_base:
+  # 财务术语库
+  terms:
+    path: "./data/knowledge/terms.json"
+    size: 3000
+
+  # 指标计算公式库
+  formulas:
+    path: "./data/knowledge/formulas.json"
+
+  # 分析方法库
+  methods:
+    path: "./data/knowledge/methods.json"
+
+# 对话配置
+conversation:
+  max_history: 10
+  max_tokens_per_turn: 2000
+  enable_context_memory: true
+  context_window: 5
+
+# 分析配置
+analysis:
+  # 归因分析
+  attribution:
+    min_impact_threshold: 0.05 # 5%以上影响才显示
+    max_factors: 5
+
+  # 风险预警
+  risk:
+    warning_levels:
+      - level: "high"
+        threshold: 0.8
+      - level: "medium"
+        threshold: 0.5
+      - level: "low"
+        threshold: 0.3
+
+  # 行业对标
+  industry:
+    benchmark_years: 3
+    percentile_ranks: [25, 50, 75]
+
+# 报告生成配置
+report:
+  templates:
+    - name: "信贷审批摘要"
+      path: "./templates/credit_summary.jinja2"
+      max_length: 500
+    - name: "季度业绩分析"
+      path: "./templates/quarterly_analysis.jinja2"
+      max_length: 2000
+    - name: "风险评估报告"
+      path: "./templates/risk_assessment.jinja2"
+      max_length: 3000
+
+  chart:
+    width: 800
+    height: 600
+    format: "png"
+    dpi: 300
