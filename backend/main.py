@@ -19,9 +19,16 @@ async def lifespan(app: FastAPI):
     # 启动时初始化
     setup_logging()
     await init_storage()
+    
+    # 启动数据调度器
+    from backend.services.scheduler import scheduler
+    await scheduler.start()
+    
     yield
+    
     # 关闭时清理
-    pass
+    from backend.services.scheduler import scheduler
+    await scheduler.stop()
 
 
 app = FastAPI(
