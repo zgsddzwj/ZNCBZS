@@ -73,6 +73,9 @@ scikit-learn==1.3.2
 joblib==1.3.2
 shap==0.43.0  # 特征重要性分析
 
+# MCP (Model Context Protocol)
+mcp==0.9.0
+
 # 其他工具
 python-dotenv==1.0.0
 pyyaml==6.0.1

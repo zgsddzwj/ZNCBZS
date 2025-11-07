@@ -1,14 +1,16 @@
 """
-协同引擎 - 任务调度和流程控制
+协同引擎 - 任务调度和流程控制（基于MCP架构）
 """
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from datetime import datetime
 import uuid
+import json
 from loguru import logger
 
 from backend.engine.llm_service import LLMService
 from backend.engine.retrieval import RetrievalEngine
+from backend.mcp.client import MCPClient
 
 
 @dataclass
@@ -31,12 +33,29 @@ class ConversationContext:
 
 
 class Coordinator:
-    """协同引擎 - 负责任务拆解、工具调用、上下文管理"""
+    """
+    协同引擎 - 负责任务拆解、工具调用、上下文管理（基于MCP架构）
     
-    def __init__(self):
+    使用MCP Client来调用工具和数据源，实现标准化的工具调用接口
+    """
+    
+    def __init__(self, use_mcp: bool = True):
+        """
+        初始化协同引擎
+        
+        Args:
+            use_mcp: 是否使用MCP架构（默认True）
+        """
         self.llm_service = LLMService()
         self.retrieval_engine = RetrievalEngine()
         self.conversations: Dict[str, ConversationContext] = {}
+        
+        # MCP Client
+        self.use_mcp = use_mcp
+        self.mcp_client: Optional[MCPClient] = None
+        if use_mcp:
+            self.mcp_client = MCPClient()
+            logger.info("已启用MCP架构")
     
     async def process_query(
         self,
@@ -68,24 +87,33 @@ class Coordinator:
             # 1. 理解意图和提取实体
             intent_result = await self._understand_intent(query, context)
             
-            # 2. 检索相关知识
-            retrieved_docs = await self._retrieve_knowledge(
-                query=query,
-                intent=intent_result,
-            )
+            # 2. 检索相关知识（优先使用MCP资源）
+            if self.use_mcp and self.mcp_client:
+                retrieved_docs = await self.mcp_client.search_knowledge(query, top_k=10)
+            else:
+                retrieved_docs = await self._retrieve_knowledge(
+                    query=query,
+                    intent=intent_result,
+                )
             
-            # 3. 生成回答
+            # 3. 判断是否需要调用工具
+            tool_result = None
+            if self.use_mcp and self.mcp_client:
+                tool_result = await self._call_mcp_tools(query, intent_result, context)
+            
+            # 4. 生成回答
             answer = await self._generate_answer(
                 query=query,
                 context=context,
                 retrieved_docs=retrieved_docs,
                 intent=intent_result,
+                tool_result=tool_result,
             )
             
             # 添加助手回复
             context.add_message("assistant", answer)
             
-            return {
+            result = {
                 "answer": answer,
                 "conversation_id": context.conversation_id,
                 "context": context.history,
@@ -97,6 +125,12 @@ class Coordinator:
                     for doc in retrieved_docs[:3]
                 ],
             }
+            
+            # 添加工具调用结果
+            if tool_result:
+                result["tool_result"] = tool_result
+            
+            return result
             
         except Exception as e:
             logger.error(f"处理查询失败: {e}")
@@ -157,14 +191,182 @@ class Coordinator:
         )
         return docs
     
+    async def _call_mcp_tools(
+        self,
+        query: str,
+        intent: Dict[str, Any],
+        context: ConversationContext,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        根据意图调用MCP工具
+        
+        Args:
+            query: 用户查询
+            intent: 意图识别结果
+            context: 对话上下文
+            
+        Returns:
+            工具调用结果
+        """
+        if not self.mcp_client:
+            return None
+        
+        try:
+            # 使用LLM判断需要调用哪些工具
+            tools = await self.mcp_client.list_tools()
+            tools_description = "\n".join([
+                f"- {tool['name']}: {tool['description']}"
+                for tool in tools
+            ])
+            
+            prompt = f"""
+分析以下问题，判断需要调用哪些工具：
+
+问题：{query}
+意图：{intent}
+
+可用工具：
+{tools_description}
+
+请返回JSON格式，包含：
+1. tool_name: 工具名称
+2. arguments: 工具参数（从问题中提取）
+
+如果不需要调用工具，返回null。
+"""
+            
+            response = await self.llm_service.generate(
+                prompt=prompt,
+                temperature=0.1,
+                max_tokens=500,
+            )
+            
+            # 解析工具调用信息
+            try:
+                tool_call = json.loads(response)
+                if tool_call and tool_call.get("tool_name"):
+                    tool_name = tool_call["tool_name"]
+                    arguments = tool_call.get("arguments", {})
+                    
+                    # 调用工具
+                    result = await self.mcp_client.call_tool(tool_name, arguments)
+                    logger.info(f"MCP工具调用成功: {tool_name}")
+                    return {
+                        "tool": tool_name,
+                        "arguments": arguments,
+                        "result": result,
+                    }
+            except json.JSONDecodeError:
+                # 如果无法解析JSON，尝试基于意图直接调用
+                return await self._call_tool_by_intent(intent)
+            
+        except Exception as e:
+            logger.error(f"MCP工具调用失败: {e}")
+            return None
+    
+    async def _call_tool_by_intent(self, intent: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        根据意图直接调用工具（备用方案）
+        
+        Args:
+            intent: 意图识别结果
+            
+        Returns:
+            工具调用结果
+        """
+        if not self.mcp_client:
+            return None
+        
+        intent_type = intent.get("type", "")
+        company = intent.get("company")
+        indicator = intent.get("indicator")
+        time_info = intent.get("time", {})
+        year = time_info.get("year") if isinstance(time_info, dict) else None
+        
+        try:
+            # 根据意图类型选择工具
+            if intent_type == "query" and company and indicator and year:
+                return {
+                    "tool": "query_report_indicator",
+                    "arguments": {
+                        "company": company,
+                        "indicator": indicator,
+                        "year": year,
+                    },
+                    "result": await self.mcp_client.call_tool(
+                        "query_report_indicator",
+                        {
+                            "company": company,
+                            "indicator": indicator,
+                            "year": year,
+                        }
+                    ),
+                }
+            
+            elif intent_type == "compare" and company and indicator:
+                # 对比分析
+                return {
+                    "tool": "compare_indicators",
+                    "arguments": {
+                        "companies": [company] if company else [],
+                        "indicator": indicator,
+                        "start_year": year - 2 if year else 2021,
+                        "end_year": year if year else 2023,
+                    },
+                    "result": await self.mcp_client.call_tool(
+                        "compare_indicators",
+                        {
+                            "companies": [company] if company else [],
+                            "indicator": indicator,
+                            "start_year": year - 2 if year else 2021,
+                            "end_year": year if year else 2023,
+                        }
+                    ),
+                }
+            
+            elif intent_type == "attribution" and company and indicator and year:
+                return {
+                    "tool": "analyze_attribution",
+                    "arguments": {
+                        "company": company,
+                        "indicator": indicator,
+                        "base_year": year - 1,
+                        "target_year": year,
+                    },
+                    "result": await self.mcp_client.call_tool(
+                        "analyze_attribution",
+                        {
+                            "company": company,
+                            "indicator": indicator,
+                            "base_year": year - 1,
+                            "target_year": year,
+                        }
+                    ),
+                }
+            
+        except Exception as e:
+            logger.error(f"基于意图的工具调用失败: {e}")
+        
+        return None
+    
     async def _generate_answer(
         self,
         query: str,
         context: ConversationContext,
         retrieved_docs: List[Dict[str, Any]],
         intent: Dict[str, Any],
+        tool_result: Optional[Dict[str, Any]] = None,
     ) -> str:
-        """生成回答"""
+        """
+        生成回答
+        
+        Args:
+            query: 用户查询
+            context: 对话上下文
+            retrieved_docs: 检索到的文档
+            intent: 意图识别结果
+            tool_result: 工具调用结果（可选）
+        """
         # 构建提示词
         context_text = self._format_history(context.history[-5:])
         knowledge_text = "\n\n".join([
@@ -172,22 +374,34 @@ class Coordinator:
             for doc in retrieved_docs[:5]
         ])
         
+        # 添加工具调用结果
+        tool_text = ""
+        if tool_result:
+            tool_text = f"""
+工具调用结果：
+工具：{tool_result.get('tool', '')}
+结果：{json.dumps(tool_result.get('result', {}), ensure_ascii=False, indent=2)}
+"""
+        
         prompt = f"""
 你是一个专业的财务分析师助手。基于以下知识回答问题。
 
 知识库内容：
 {knowledge_text}
 
+{tool_text}
+
 对话历史：
 {context_text}
 
 当前问题：{query}
 
-请基于知识库内容回答问题，要求：
+请基于知识库内容和工具调用结果回答问题，要求：
 1. 回答准确、专业
 2. 如果知识库中没有相关信息，明确说明
 3. 回答简洁明了，控制在200字以内
 4. 可以引用数据时，请提供具体数值
+5. 如果使用了工具，请引用工具的结果
 
 回答：
 """
