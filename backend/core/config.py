@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     """应用配置"""
     
     # 应用基础配置
-    APP_NAME: str = "小京财智 AI 助手平台"
+    APP_NAME: str = "智能财报助手"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
     SECRET_KEY: str = "dev-secret-key-change-in-production"

@@ -29,9 +29,16 @@ ENV/
 # IDE
 .vscode/
 .idea/
+.fleet/
+*.iml
 *.swp
 *.swo
 *~
+
+# Node.js
+node_modules/
+frontend/node_modules/
+frontend/dist/
 
 # Environment variables
 .env
@@ -50,6 +57,7 @@ logs/
 # Data files
 data/raw/
 data/processed/
+data/uploads/
 uploads/
 temp/
 

@@ -93,7 +93,7 @@ pip install -r requirements.txt
 
 3. 配置环境变量
 ```bash
-cp config/.env.example config/.env
+cp config/env_template.txt .env
 # 编辑 config/.env 填入你的配置
 ```
 

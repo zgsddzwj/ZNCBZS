@@ -1,4 +1,4 @@
-# 小京财智 AI 助手平台 - Langchain使用文档
+# 智能财报助手 - Langchain使用文档
 
 ## 📋 目录
 1. [Langchain使用情况](#langchain使用情况)

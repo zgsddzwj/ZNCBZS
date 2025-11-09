@@ -47,7 +47,7 @@ export default function Layout({ children }) {
     <AntLayout style={{ minHeight: '100vh' }}>
       <Header style={{ background: '#001529', color: '#fff', padding: '0 24px' }}>
         <h1 style={{ color: '#fff', margin: 0, lineHeight: '64px' }}>
-          小京财智 AI 助手平台
+          智能财报助手
         </h1>
       </Header>
       <AntLayout>
