@@ -1,10 +1,9 @@
 """
 应用配置管理
 """
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
 from functools import lru_cache
-import os
 
 
 class Settings(BaseSettings):
@@ -27,14 +26,16 @@ class Settings(BaseSettings):
     OPENAI_BASE_URL: str = "https://api.openai.com/v1"
     OPENAI_MODEL: str = "gpt-4-turbo-preview"
     
-    DEEPSEEK_API_KEY: str = ""
+    DEEPSEEK_API_KEY: str = "sk-a9323e658d5344dbbb09573ba9792459"
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com/v1"
     DEEPSEEK_MODEL: str = "deepseek-chat"
+    DEEPSEEK_EMBED_MODEL: str = "deepseek-embedding"
+    LOCAL_EMBED_MODEL: str = "shibing624/text2vec-base-chinese"
     
     # 知识图谱数据库 (Neo4j)
     NEO4J_URI: str = "bolt://localhost:7687"
     NEO4J_USER: str = "neo4j"
-    NEO4J_PASSWORD: str = "zncbzs123"
+    NEO4J_PASSWORD: str = "neo4j123456"
     
     # 向量数据库 (Milvus)
     MILVUS_HOST: str = "localhost"
@@ -70,10 +71,11 @@ class Settings(BaseSettings):
     TESSERACT_CMD: str = "/usr/bin/tesseract"
     OCR_LANG: str = "chi_sim+eng"
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = True
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+    )
 
 
 @lru_cache()

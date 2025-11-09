@@ -18,6 +18,9 @@ class BERTReranker:
         device: str = "cuda",
     ):
         self.model_path = model_path
+        if device == "cuda" and not torch.cuda.is_available():
+            logger.warning("CUDA不可用，Reranker模型回退到CPU")
+            device = "cpu"
         self.device = device
         self.tokenizer = None
         self.model = None
@@ -26,17 +29,22 @@ class BERTReranker:
     def _load_model(self):
         """加载模型"""
         try:
-            # 使用中文BERT模型（如BERT-base-chinese）
-            # 或使用微调后的金融领域Reranker模型
-            model_name = "bert-base-chinese"  # 默认使用基础模型
+            # 默认使用开源中文句向量模型
+            model_name = "shibing624/text2vec-base-chinese"  # 句向量模型，带相似度头
             
             # 如果存在微调模型，优先加载
             from pathlib import Path
-            if Path(self.model_path).exists():
+            model_path = Path(self.model_path)
+            if model_path.exists() and (model_path / "config.json").exists():
                 model_name = self.model_path
                 logger.info(f"加载微调Reranker模型: {model_name}")
             else:
-                logger.info(f"使用基础BERT模型: {model_name}")
+                if model_path.exists():
+                    logger.warning(
+                        f"微调Reranker目录 {model_path} 缺少必要文件，将回退至默认句向量模型 {model_name}"
+                    )
+                else:
+                    logger.info(f"使用默认中文句向量模型: {model_name}")
             
             self.tokenizer = AutoTokenizer.from_pretrained(model_name)
             self.model = AutoModelForSequenceClassification.from_pretrained(model_name)

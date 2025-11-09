@@ -204,8 +204,12 @@ class Coordinator:
         """格式化对话历史"""
         formatted = []
         for msg in history:
-            role = msg.get("role", "user")
-            content = msg.get("content", "")
+            if isinstance(msg, dict):
+                role = msg.get("role", "user")
+                content = msg.get("content", "")
+            else:
+                role = getattr(msg, "role", "user")
+                content = getattr(msg, "content", "")
             formatted.append(f"{role}: {content}")
         return "\n".join(formatted)
     

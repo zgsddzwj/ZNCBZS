@@ -1,26 +1,21 @@
 """
 大模型服务引擎
 """
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from openai import AsyncOpenAI
 from loguru import logger
 from backend.core.config import settings
 from backend.models.finetune.lora_trainer import LoRATrainer
+from sentence_transformers import SentenceTransformer
 
 
 class LLMService:
     """大模型服务 - 封装OpenAI、DeepSeek等模型"""
     
     def __init__(self):
-        self.openai_client = None
         self.deepseek_client = None
         self.finetuned_model = None  # LoRA微调模型
-        
-        if settings.OPENAI_API_KEY:
-            self.openai_client = AsyncOpenAI(
-                api_key=settings.OPENAI_API_KEY,
-                base_url=settings.OPENAI_BASE_URL,
-            )
+        self.local_embedder: Optional[SentenceTransformer] = None
         
         if settings.DEEPSEEK_API_KEY:
             self.deepseek_client = AsyncOpenAI(
@@ -48,7 +43,7 @@ class LLMService:
         temperature: float = 0.3,
         max_tokens: int = 2000,
         system_prompt: Optional[str] = None,
-        use_deepseek: bool = False,
+        use_deepseek: Optional[bool] = True,
         use_finetuned: bool = False,
     ) -> str:
         """
@@ -74,14 +69,11 @@ class LLMService:
             )
             return result
         
-        client = self.deepseek_client if use_deepseek else self.openai_client
-        
+        client: Optional[AsyncOpenAI] = self.deepseek_client
+        model_name: Optional[str] = model or settings.DEEPSEEK_MODEL
+
         if client is None:
-            raise ValueError("未配置大模型API密钥")
-        
-        model_name = model or (
-            settings.DEEPSEEK_MODEL if use_deepseek else settings.OPENAI_MODEL
-        )
+            raise ValueError("未配置DeepSeek API密钥")
         
         try:
             messages = []
@@ -131,17 +123,36 @@ class LLMService:
         Returns:
             向量列表
         """
-        # 使用OpenAI的embedding模型
-        if self.openai_client is None:
-            raise ValueError("未配置OpenAI API密钥")
-        
+        embeddings: Optional[List[float]] = None
+
+        client: Optional[AsyncOpenAI] = self.deepseek_client
+        model_name: Optional[str] = getattr(settings, "DEEPSEEK_EMBED_MODEL", None)
+
+        if client and model_name:
+            try:
+                response = await client.embeddings.create(
+                    model=model_name,
+                    input=text,
+                )
+                embeddings = response.data[0].embedding  # type: ignore[attr-defined]
+            except Exception as e:
+                logger.warning(f"DeepSeek嵌入生成失败，将回退本地模型: {e}")
+        else:
+            logger.warning("未配置可用的DeepSeek嵌入模型，使用本地句向量模型")
+
+        if embeddings is not None:
+            return embeddings
+
+        # Fallback: local sentence-transformer
+        if self.local_embedder is None:
+            local_model_name = getattr(settings, "LOCAL_EMBED_MODEL", "shibing624/text2vec-base-chinese")
+            logger.info(f"加载本地句向量模型: {local_model_name}")
+            self.local_embedder = SentenceTransformer(local_model_name)
+
         try:
-            response = await self.openai_client.embeddings.create(
-                model="text-embedding-3-small",
-                input=text,
-            )
-            return response.data[0].embedding
-        except Exception as e:
-            logger.error(f"生成嵌入向量失败: {e}")
+            local_embedding = self.local_embedder.encode(text, normalize_embeddings=True)
+            return local_embedding.tolist()
+        except Exception as e:  # pragma: no cover
+            logger.error(f"本地嵌入模型生成失败: {e}")
             raise
 
