@@ -33,9 +33,13 @@ class ConversationContext:
 class Coordinator:
     """协同引擎 - 负责任务拆解、工具调用、上下文管理"""
     
-    def __init__(self):
-        self.llm_service = LLMService()
-        self.retrieval_engine = RetrievalEngine()
+    def __init__(
+        self,
+        llm_service: Optional[LLMService] = None,
+        retrieval_engine: Optional[RetrievalEngine] = None,
+    ):
+        self.llm_service = llm_service or LLMService()
+        self.retrieval_engine = retrieval_engine or RetrievalEngine()
         self.conversations: Dict[str, ConversationContext] = {}
     
     async def process_query(

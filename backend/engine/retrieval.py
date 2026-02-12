@@ -11,11 +11,17 @@ from backend.models.reranker.bert_reranker import BERTReranker
 class RetrievalEngine:
     """知识检索引擎 - 集成关键词检索、向量检索、混合排序"""
     
-    def __init__(self):
-        self.llm_service = LLMService()
-        self.vector_store = VectorStore()
-        self.knowledge_graph = KnowledgeGraph()
-        self.reranker = BERTReranker()  # 使用BERT Reranker模型
+    def __init__(
+        self,
+        llm_service: Optional[LLMService] = None,
+        vector_store: Optional[VectorStore] = None,
+        knowledge_graph: Optional[KnowledgeGraph] = None,
+        reranker: Optional[BERTReranker] = None,
+    ):
+        self.llm_service = llm_service or LLMService()
+        self.vector_store = vector_store or VectorStore()
+        self.knowledge_graph = knowledge_graph or KnowledgeGraph()
+        self.reranker = reranker or BERTReranker()  # 使用BERT Reranker模型
     
     async def retrieve(
         self,

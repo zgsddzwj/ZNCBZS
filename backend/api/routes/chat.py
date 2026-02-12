@@ -1,11 +1,12 @@
 """
 对话式交互API
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional
 from backend.engine.coordinator import Coordinator
 from backend.engine.coordinator import ConversationContext
+from backend.api.deps import get_coordinator
 
 router = APIRouter()
 
@@ -67,10 +68,12 @@ async def chat_query(request: ChatRequest):
 
 
 @router.get("/history/{conversation_id}")
-async def get_conversation_history(conversation_id: str):
+async def get_conversation_history(
+    conversation_id: str,
+    coordinator: Coordinator = Depends(get_coordinator),
+):
     """获取对话历史"""
     try:
-        coordinator = Coordinator()
         history = await coordinator.get_conversation_history(conversation_id)
         return {"history": history}
     except Exception as e:

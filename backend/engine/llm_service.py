@@ -62,7 +62,12 @@ class LLMService:
         if use_finetuned and self.finetuned_model:
             # LoRA模型是同步的，需要包装为异步
             import asyncio
-            loop = asyncio.get_event_loop()
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
             result = await loop.run_in_executor(
                 None,
                 lambda: self.finetuned_model.generate(prompt, max_length=max_tokens, temperature=temperature)
