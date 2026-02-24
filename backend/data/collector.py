@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 import asyncio
 import aiohttp
 import aiofiles
+import ssl
+import pandas as pd
 from loguru import logger
 from backend.core.config import settings
 
@@ -14,22 +16,10 @@ from backend.core.config import settings
 class BankReportCollector:
     """银行财报数据采集器"""
     
-    # 42家A股上市银行列表
-    A_SHARE_BANKS = [
-        "工商银行", "建设银行", "农业银行", "中国银行", "交通银行",
-        "招商银行", "浦发银行", "兴业银行", "民生银行", "光大银行",
-        "华夏银行", "平安银行", "中信银行", "北京银行", "上海银行",
-        "江苏银行", "宁波银行", "南京银行", "杭州银行", "成都银行",
-        "长沙银行", "西安银行", "贵阳银行", "郑州银行", "青岛银行",
-        "苏州银行", "厦门银行", "重庆银行", "齐鲁银行", "兰州银行",
-        "瑞丰银行", "常熟银行", "张家港行", "江阴银行", "无锡银行",
-        "苏农银行", "紫金银行", "青农商行", "渝农商行", "沪农商行",
-        "邮储银行", "浙商银行",
-    ]
-    
     def __init__(self):
         self.data_dir = Path("./data/raw/bank_reports")
         self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.A_SHARE_BANKS = settings.A_SHARE_BANKS
         
     async def collect_bank_reports(
         self,
@@ -126,78 +116,129 @@ class BankReportCollector:
         report_type: str,
     ) -> Optional[Dict[str, Any]]:
         """
-        从数据源获取财报信息
-        
-        注意：这里需要根据实际数据源实现
-        可能的来源：
-        1. 巨潮资讯网（cninfo.com.cn）- 官方披露
-        2. Wind/同花顺API（需要付费）
-        3. 银行官网
+        从巨潮资讯网获取财报信息
         """
-        # 示例：从巨潮资讯网获取
-        # 实际实现需要解析HTML或调用API
+        # 巨潮资讯网的查询API
+        query_url = "http://www.cninfo.com.cn/new/hisAnnouncement/query"
+        
+        # 根据报告类型设置查询参数
+        report_type_map = {
+            "annual": ("category_ndbg_szsh;", f"{year}-01-01", f"{year}-12-31"),
+            "semi_annual": ("category_bndbg_szsh;", f"{year}-01-01", f"{year}-08-31"),
+            "quarterly_1": ("category_yjdbg_szsh;", f"{year}-01-01", f"{year}-04-30"),
+            "quarterly_3": ("category_sjdbg_szsh;", f"{year}-07-01", f"{year}-10-31"),
+        }
+
+        query_report_type = report_type
+        if report_type == "quarterly": # 简化处理，默认查三季报
+            query_report_type = "quarterly_3"
+
+        if query_report_type not in report_type_map:
+            logger.warning(f"不支持的报告类型: {report_type}")
+            return None
+
+        category, start_date, end_date = report_type_map[query_report_type]
+        se_date = f"{start_date}~{end_date}"
+
+        # 构造查询payload，不区分沪深交易所，使用searchkey进行模糊搜索
+        payload = {
+            "pageNum": 1,
+            "pageSize": 10, # 通常第一个就是最新的
+            "tabName": "fulltext",
+            "searchkey": f"{bank} {year} {report_type_map[query_report_type][0][:4]}报告", # 构造更精确的搜索词
+            "seDate": se_date,
+            "category": category,
+            "isHLtitle": "true"
+        }
+
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+
         try:
-            async with aiohttp.ClientSession() as session:
-                # 构建查询URL（示例）
-                url = self._build_query_url(bank, year, report_type)
-                
-                async with session.get(url, timeout=30) as response:
+            async with aiohttp.ClientSession(headers=headers) as session:
+                async with session.post(query_url, data=payload, timeout=30) as response:
                     if response.status == 200:
-                        # 解析响应，提取财报下载链接
-                        # 这里需要根据实际网站结构实现
-                        return {
-                            "download_url": "",  # 实际下载链接
-                            "source": "cninfo",
-                            "publish_date": f"{year}-12-31",
-                        }
-            
+                        data = await response.json()
+                        announcements = data.get("announcements")
+                        if announcements:
+                            # 通常第一个是最相关的
+                            report = announcements[0]
+                            return {
+                                "download_url": f"http://static.cninfo.com.cn/{report['adjunctUrl']}",
+                                "source": "cninfo",
+                                "publish_date": report.get("announcementTime", ""),
+                                "title": report.get("announcementTitle", "")
+                            }
+            logger.warning(f"在巨潮资讯网未找到 {bank} {year} 年 {report_type} 报告")
             return None
-            
         except Exception as e:
-            logger.warning(f"获取财报信息失败: {e}")
+            logger.error(f"从巨潮资讯网获取财报信息失败: {e}")
             return None
-    
-    def _build_query_url(self, bank: str, year: int, report_type: str) -> str:
-        """构建查询URL（示例）"""
-        # 巨潮资讯网查询URL示例格式
-        base_url = "http://www.cninfo.com.cn/new/information/topSearch/query"
-        # 实际需要根据网站API调整
-        return base_url
     
     async def _download_report(self, report_info: Dict[str, Any]) -> str:
         """下载财报文件"""
         download_url = report_info.get("download_url")
         if not download_url:
             return ""
-        
+
         try:
+            # 从URL或标题中提取信息来构建更可靠的文件名
+            # 假设 report_info 包含 'title' 字段，如 "招商银行2023年年度报告"
+            title = report_info.get("title", "")
+            original_filename = download_url.split('/')[-1]
+            # 清理标题以用作文件名的一部分
+            safe_title = title.replace(':', '：').replace('/', '_').replace('\\', '_')
+            filename = f"{safe_title}_{original_filename}" if title else original_filename
+            if not filename.lower().endswith('.pdf'):
+                filename += '.pdf'
+
+            file_path = self.data_dir / filename
+
+            if file_path.exists():
+                logger.info(f"文件已存在，跳过下载: {file_path}")
+                return str(file_path)
+
             async with aiohttp.ClientSession() as session:
                 async with session.get(download_url, timeout=300) as response:
                     if response.status == 200:
-                        # 保存文件
-                        filename = f"{report_info.get('bank', 'unknown')}_{report_info.get('year', 'unknown')}_{report_info.get('report_type', 'unknown')}.pdf"
-                        file_path = self.data_dir / filename
-                        
                         async with aiofiles.open(file_path, 'wb') as f:
                             content = await response.read()
                             await f.write(content)
-                        
+                        logger.info(f"下载财报成功: {file_path}")
                         return str(file_path)
-            
-            return ""
-            
+                    else:
+                        logger.warning(f"下载财报失败，状态码: {response.status}, URL: {download_url}")
+                        return ""
+
         except Exception as e:
-            logger.error(f"下载财报失败: {e}")
+            logger.error(f"下载财报时发生错误: {e}, URL: {download_url}")
             return ""
 
 
 class MacroDataCollector:
     """宏观经济数据采集器"""
-    
+
     def __init__(self):
         self.data_dir = Path("./data/raw/macro_data")
         self.data_dir.mkdir(parents=True, exist_ok=True)
-    
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        # 指标到采集函数的映射
+        self.indicator_map = {
+            "GDP": self._fetch_stats_gov_data,
+            "CPI": self._fetch_stats_gov_data,
+            "利率": self._fetch_lpr_data,
+            "M2": self._fetch_m2_data,
+            "社会融资规模": self._fetch_m2_data,
+        }
+        # 国家统计局指标参数
+        self.stats_gov_params = {
+            "GDP": {"dbcode": "hgnd", "wdscode": "zb", "valuecode": "A020101"},  # 年度GDP
+            "CPI": {"dbcode": "hgyd", "wdscode": "zb", "valuecode": "A010101"},  # 月度CPI
+        }
+
     async def collect_macro_data(
         self,
         indicators: Optional[List[str]] = None,
@@ -206,91 +247,209 @@ class MacroDataCollector:
     ) -> List[Dict[str, Any]]:
         """
         采集宏观经济数据
-        
+
         Args:
             indicators: 指标列表（GDP, 利率, 通胀率, M2等）
             start_date: 开始日期（YYYY-MM-DD）
             end_date: 结束日期（YYYY-MM-DD）
         """
         if indicators is None:
-            indicators = ["GDP", "利率", "通胀率", "M2", "社会融资规模"]
-        
+            indicators = settings.MACRO_INDICATORS
+
         if start_date is None:
             start_date = (datetime.now() - timedelta(days=365 * 10)).strftime("%Y-%m-%d")
-        
+
         if end_date is None:
             end_date = datetime.now().strftime("%Y-%m-%d")
-        
-        collected_data = []
-        
+
+        collected_data_all = []
+
         for indicator in indicators:
+            fetch_func = self.indicator_map.get(indicator)
+            if not fetch_func:
+                logger.warning(f"暂不支持采集指标: {indicator}，请在 indicator_map 中配置。")
+                continue
             try:
-                data = await self._fetch_indicator_data(
-                    indicator, start_date, end_date
-                )
+                data = await fetch_func(indicator, start_date, end_date)
                 if data:
-                    collected_data.append({
+                    filepath = self._save_data_to_csv(indicator, data)
+                    logger.info(f"指标 {indicator} 数据已保存至 {filepath}")
+                    collected_data_all.append({
                         "indicator": indicator,
-                        "data": data,
-                        "start_date": start_date,
-                        "end_date": end_date,
+                        "file_path": filepath,
+                        "records_count": len(data),
                         "collected_at": datetime.now().isoformat(),
                     })
             except Exception as e:
                 logger.error(f"采集指标 {indicator} 失败: {e}")
+
+        return collected_data_all
+
+    def _save_data_to_csv(self, indicator: str, data: List[Dict[str, Any]]) -> str:
+        """将采集的数据保存到CSV文件"""
+        if not data:
+            return ""
         
-        return collected_data
-    
-    async def _fetch_indicator_data(
+        df = pd.DataFrame(data)
+        # 标准化列名
+        if 'time' in df.columns:
+            df = df.rename(columns={'time': 'date'})
+
+        # 确保 'date' 列是第一列
+        if 'date' in df.columns:
+            cols = ['date'] + [col for col in df.columns if col != 'date']
+            df = df[cols]
+
+        filepath = self.data_dir / f"{indicator}.csv"
+        df.to_csv(filepath, index=False, encoding='utf-8-sig')
+        return str(filepath)
+
+    async def _fetch_stats_gov_data(
         self,
         indicator: str,
         start_date: str,
         end_date: str,
     ) -> List[Dict[str, Any]]:
         """
-        从数据源获取指标数据
-        
-        数据源：
-        1. 国家统计局API
-        2. 央行官网
-        3. Wind/同花顺API
+        从国家统计局获取指标数据
         """
+        base_url = "http://data.stats.gov.cn/easyquery.htm"
+        params = self._build_stats_gov_params(indicator, start_date, end_date)
+        if not params:
+            logger.warning(f"无法为指标构建查询参数: {indicator}")
+            return []
+
         try:
-            # 示例：从国家统计局获取
-            async with aiohttp.ClientSession() as session:
-                # 构建API URL（需要根据实际API调整）
-                url = self._build_indicator_url(indicator, start_date, end_date)
-                
-                async with session.get(url, timeout=30) as response:
+            # 国家统计局网站可能需要禁用SSL验证
+            ssl_context = ssl.create_default_context()
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+            async with aiohttp.ClientSession(headers=self.headers, connector=aiohttp.TCPConnector(ssl=ssl_context)) as session:
+                async with session.get(base_url, params=params, timeout=60) as response:
                     if response.status == 200:
-                        data = await response.json()
-                        return self._parse_indicator_data(data, indicator)
-            
-            return []
-            
+                        json_data = await response.json()
+                        return self._parse_stats_gov_data(json_data, indicator)
+                    else:
+                        logger.error(f"采集 {indicator} 数据失败，状态码: {response.status}")
+                        return []
         except Exception as e:
-            logger.warning(f"获取指标数据失败: {e}")
+            logger.error(f"采集 {indicator} 数据时发生错误: {e}")
             return []
-    
-    def _build_indicator_url(
+
+    def _build_stats_gov_params(
         self,
         indicator: str,
         start_date: str,
         end_date: str,
-    ) -> str:
-        """构建指标查询URL"""
-        # 国家统计局API示例
-        base_url = "http://data.stats.gov.cn/easyquery.htm"
-        # 实际需要根据API文档调整
-        return base_url
-    
-    def _parse_indicator_data(
+    ) -> Optional[Dict[str, Any]]:
+        """构建国家统计局指标查询URL参数"""
+        import time
+        indicator_params = self.stats_gov_params.get(indicator)
+        if not indicator_params:
+            return None
+
+        dbcode = indicator_params["dbcode"]
+        if dbcode == 'hgnd':  # 年度
+            start_str = start_date[:4]
+            end_str = end_date[:4]
+        elif dbcode == 'hgyd':  # 月度
+            start_str = start_date[:7].replace('-', '')
+            end_str = end_date[:7].replace('-', '')
+        else:
+            logger.warning(f"未知的指标频率代码: {dbcode}")
+            return None
+
+        return {
+            'm': 'QueryData',
+            'dbcode': dbcode,
+            'rowcode': 'zb',
+            'colcode': 'sj',
+            'wds': '[]',
+            'dfwds': f'[{{"wdcode":"zb","valuecode":"{indicator_params["valuecode"]}"}},{{"wdcode":"sj","valuecode":"{start_str}-{end_str}"}}]',
+            'k1': str(int(time.time() * 1000)),
+        }
+
+    def _parse_stats_gov_data(
         self,
         raw_data: Any,
         indicator: str,
     ) -> List[Dict[str, Any]]:
-        """解析指标数据"""
-        # 根据实际API响应格式解析
+        """解析国家统计局返回的指标数据"""
+        if raw_data.get("returncode") != 200:
+            logger.warning(f"国家统计局API返回错误: {raw_data.get('returntype')}")
+            return []
+
+        datanodes = raw_data.get("returndata", {}).get("datanodes", [])
+        if not datanodes:
+            logger.warning(f"未找到指标 {indicator} 的数据")
+            return []
+
+        records = []
+        for node in datanodes:
+            if node.get("data", {}).get("hasdata"):
+                time_code = next((item['valuecode'] for item in node['wds'] if item['wdcode'] == 'sj'), None)
+                value = node["data"]["data"]
+                if time_code:
+                    records.append({"time": time_code, "value": value})
+        return records
+
+    async def _fetch_lpr_data(
+        self,
+        indicator: str,
+        start_date: str,
+        end_date: str,
+    ) -> List[Dict[str, Any]]:
+        """从东方财富网获取LPR数据"""
+        logger.info("开始从东方财富网采集LPR数据...")
+        url = "https://datacenter-web.eastmoney.com/api/data/v1/get"
+        params = {
+            "reportName": "RPT_LPR_HIST",
+            "columns": "ALL",
+            "pageSize": 500, # 获取尽可能多的历史数据
+            "sortColumns": "TRADE_DATE",
+            "sortTypes": "-1",
+        }
+        try:
+            async with aiohttp.ClientSession(headers=self.headers) as session:
+                async with session.get(url, params=params, timeout=60) as response:
+                    if response.status == 200:
+                        json_data = await response.json()
+                        if not json_data.get("success"):
+                            logger.error(f"东方财富LPR接口返回失败: {json_data.get('message')}")
+                            return []
+                        
+                        data = json_data.get("result", {}).get("data", [])
+                        if not data:
+                            logger.warning("东方财富LPR接口未返回数据")
+                            return []
+
+                        records = []
+                        for item in data:
+                            trade_date = item.get("TRADE_DATE", "").split(" ")[0]
+                            # 筛选日期范围
+                            if start_date <= trade_date <= end_date:
+                                records.append({
+                                    "date": trade_date,
+                                    "lpr_1y": item.get("LPR1Y"),
+                                    "lpr_5y": item.get("LPR5Y"),
+                                })
+                        return records
+                    else:
+                        logger.error(f"采集LPR数据失败，状态码: {response.status}")
+                        return []
+        except Exception as e:
+            logger.error(f"采集LPR数据时发生错误: {e}")
+            return []
+
+    async def _fetch_m2_data(
+        self,
+        indicator: str,
+        start_date: str,
+        end_date: str,
+    ) -> List[Dict[str, Any]]:
+        """从东方财富网获取M2、社融等数据"""
+        # TODO: 实现M2和社融数据的采集逻辑
+        logger.warning(f"指标 {indicator} 的采集功能尚未实现。")
         return []
 
 
@@ -316,7 +475,7 @@ class PolicyFileCollector:
             end_date: 结束日期
         """
         if sources is None:
-            sources = ["央行", "银保监会", "证监会", "国家统计局"]
+            sources = settings.POLICY_SOURCES
         
         if start_date is None:
             start_date = (datetime.now() - timedelta(days=365 * 2)).strftime("%Y-%m-%d")
