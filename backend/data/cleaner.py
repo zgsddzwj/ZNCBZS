@@ -6,6 +6,7 @@ from datetime import datetime
 import re
 from loguru import logger
 import pandas as pd
+from backend.core.config import settings
 
 
 class DataCleaner:
@@ -13,20 +14,7 @@ class DataCleaner:
     
     def __init__(self):
         # 财务指标标准名称映射
-        self.indicator_mapping = {
-            "营业收入": "营收",
-            "营业收入合计": "营收",
-            "净利润": "净利润",
-            "归属于母公司所有者的净利润": "净利润",
-            "总资产": "总资产",
-            "总负债": "总负债",
-            "不良贷款率": "不良率",
-            "拨备覆盖率": "拨备覆盖率",
-            "资本充足率": "资本充足率",
-            "核心一级资本充足率": "核心一级资本充足率",
-            "净资产收益率": "ROE",
-            "资产收益率": "ROA",
-        }
+        self.indicator_mapping = settings.INDICATOR_MAPPING
     
     def clean_bank_report_data(
         self,
