@@ -238,6 +238,52 @@ class MacroDataCollector:
             "GDP": {"dbcode": "hgnd", "wdscode": "zb", "valuecode": "A020101"},  # 年度GDP
             "CPI": {"dbcode": "hgyd", "wdscode": "zb", "valuecode": "A010101"},  # 月度CPI
         }
+        # 东方财富宏观指标参数
+        self.eastmoney_macro_params = {
+            "M2": {
+                "reportName": "RPT_MACRO_MONEY_SUPPLY",
+                "columns": {
+                    "m2_balance": "M2_BALANCE",
+                    "m2_yoy": "M2_YOY",
+                    "m1_balance": "M1_BALANCE",
+                    "m1_yoy": "M1_YOY",
+                    "m0_balance": "M0_BALANCE",
+                    "m0_yoy": "M0_YOY",
+                }
+            },
+            "社会融资规模": {
+                "reportName": "RPT_MACRO_SOCIAL_FINANCE",
+                "columns": {
+                    "social_finance_scale": "SOCIAL_FINANCE_SCALE",
+                    "social_finance_yoy": "SOCIAL_FINANCE_YOY",
+                    "rmb_loans": "RMB_LOANS",
+                    "rmb_loans_yoy": "RMB_LOANS_YOY",
+                }
+            }
+        }
+        # 东方财富宏观指标参数
+        self.eastmoney_macro_params = {
+            "M2": {
+                "reportName": "RPT_MACRO_MONEY_SUPPLY",
+                "columns": {
+                    "m2_balance": "M2_BALANCE",
+                    "m2_yoy": "M2_YOY",
+                    "m1_balance": "M1_BALANCE",
+                    "m1_yoy": "M1_YOY",
+                    "m0_balance": "M0_BALANCE",
+                    "m0_yoy": "M0_YOY",
+                }
+            },
+            "社会融资规模": {
+                "reportName": "RPT_MACRO_SOCIAL_FINANCE",
+                "columns": {
+                    "social_finance_scale": "SOCIAL_FINANCE_SCALE",
+                    "social_finance_yoy": "SOCIAL_FINANCE_YOY",
+                    "rmb_loans": "RMB_LOANS",
+                    "rmb_loans_yoy": "RMB_LOANS_YOY",
+                }
+            }
+        }
 
     async def collect_macro_data(
         self,
@@ -447,19 +493,70 @@ class MacroDataCollector:
         start_date: str,
         end_date: str,
     ) -> List[Dict[str, Any]]:
-        """从东方财富网获取M2、社融等数据"""
-        # TODO: 实现M2和社融数据的采集逻辑
-        logger.warning(f"指标 {indicator} 的采集功能尚未实现。")
-        return []
+        """从东方财富网获取M2、社融等宏观数据"""
+        logger.info(f"开始从东方财富网采集 {indicator} 数据...")
+        
+        param_config = self.eastmoney_macro_params.get(indicator)
+        if not param_config:
+            logger.error(f"未找到指标 {indicator} 在 eastmoney_macro_params 中的配置")
+            return []
+
+        url = "https://datacenter-web.eastmoney.com/api/data/v1/get"
+        params = {
+            "reportName": param_config["reportName"],
+            "columns": "ALL",
+            "pageSize": 500, # 获取足够多的数据
+            "sortColumns": "REPORT_DATE",
+            "sortTypes": "-1",
+            "filter": f"(REPORT_DATE>='{start_date}')(REPORT_DATE<='{end_date}')"
+        }
+
+        try:
+            async with aiohttp.ClientSession(headers=self.headers) as session:
+                async with session.get(url, params=params, timeout=60) as response:
+                    if response.status == 200:
+                        json_data = await response.json()
+                        if not json_data.get("success"):
+                            logger.error(f"东方财富 {indicator} 接口返回失败: {json_data.get('message')}")
+                            return []
+                        
+                        data = json_data.get("result", {}).get("data", [])
+                        if not data:
+                            logger.warning(f"东方财富 {indicator} 接口在指定日期范围内未返回数据")
+                            return []
+
+                        records = []
+                        for item in data:
+                            report_date = item.get("REPORT_DATE", "").split(" ")[0]
+                            record = {"date": report_date}
+                            for col, key in param_config["columns"].items():
+                                record[col] = item.get(key)
+                            records.append(record)
+                        return records
+                    else:
+                        logger.error(f"采集 {indicator} 数据失败，状态码: {response.status}")
+                        return []
+        except Exception as e:
+            logger.error(f"采集 {indicator} 数据时发生错误: {e}")
+            return []
 
 
 class PolicyFileCollector:
     """政策文件采集器"""
-    
+
     def __init__(self):
         self.data_dir = Path("./data/raw/policy_files")
         self.data_dir.mkdir(parents=True, exist_ok=True)
-    
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        self.source_map = {
+            "gov_cn": {
+                "base_url": "http://www.gov.cn",
+                "fetch_func": self._fetch_policy_files_from_gov_cn
+            }
+        }
+
     async def collect_policy_files(
         self,
         sources: Optional[List[str]] = None,
@@ -468,65 +565,173 @@ class PolicyFileCollector:
     ) -> List[Dict[str, Any]]:
         """
         采集政策文件
-        
+
         Args:
-            sources: 数据源列表（央行, 银保监会, 证监会等）
-            start_date: 开始日期
-            end_date: 结束日期
+            sources: 数据源列表, 对应 source_map 中的key
+            start_date: 开始日期 (YYYY-MM-DD)
+            end_date: 结束日期 (YYYY-MM-DD)
         """
         if sources is None:
             sources = settings.POLICY_SOURCES
-        
+
         if start_date is None:
-            start_date = (datetime.now() - timedelta(days=365 * 2)).strftime("%Y-%m-%d")
-        
+            start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d") # 默认采集近30天
+
         if end_date is None:
             end_date = datetime.now().strftime("%Y-%m-%d")
-        
+
         collected_files = []
-        
+        semaphore = asyncio.Semaphore(5) # 限制并发下载数
+
         for source in sources:
+            source_config = self.source_map.get(source)
+            if not source_config:
+                logger.warning(f"未知的政策文件来源: {source}")
+                continue
+            
             try:
-                files = await self._fetch_policy_files(source, start_date, end_date)
+                logger.info(f"开始从 {source} 采集政策文件...")
+                fetch_func = source_config["fetch_func"]
+                files = await fetch_func(source, start_date, end_date, semaphore)
                 collected_files.extend(files)
             except Exception as e:
                 logger.error(f"采集 {source} 政策文件失败: {e}")
-        
+
+        logger.info(f"共采集到 {len(collected_files)} 份政策文件。")
         return collected_files
-    
-    async def _fetch_policy_files(
+
+    async def _fetch_policy_files_from_gov_cn(
         self,
         source: str,
         start_date: str,
         end_date: str,
+        semaphore: asyncio.Semaphore
     ) -> List[Dict[str, Any]]:
-        """从指定来源获取政策文件"""
+        """从中华人民共和国中央人民政府网站 (www.gov.cn) 采集最新政策文件"""
+        from bs4 import BeautifulSoup
+        import urllib.parse
+
+        list_url = f"{self.source_map[source]['base_url']}/zhengce/zuixin.htm"
+        base_url = self.source_map[source]['base_url']
+        
+        all_policy_info = []
+
         try:
-            async with aiohttp.ClientSession() as session:
-                # 根据来源构建URL
-                url = self._build_policy_url(source, start_date, end_date)
-                
-                async with session.get(url, timeout=30) as response:
-                    if response.status == 200:
-                        # 解析政策文件列表
-                        files = await self._parse_policy_list(response, source)
-                        
-                        # 下载文件
-                        downloaded_files = []
-                        for file_info in files:
-                            file_path = await self._download_policy_file(
-                                file_info, source
-                            )
-                            if file_path:
-                                downloaded_files.append({
-                                    **file_info,
-                                    "file_path": file_path,
-                                    "collected_at": datetime.now().isoformat(),
-                                })
-                        
-                        return downloaded_files
-            
+            async with aiohttp.ClientSession(headers=self.headers) as session:
+                async with session.get(list_url, timeout=60) as response:
+                    if response.status != 200:
+                        logger.error(f"访问政策列表页面失败: {list_url}, 状态码: {response.status}")
+                        return []
+                    
+                    html = await response.text()
+                    soup = BeautifulSoup(html, 'lxml')
+                    
+                    policy_links = soup.select(".news_box .list li a")
+                    policy_dates = soup.select(".news_box .list li .date")
+
+                    for i, link_tag in enumerate(policy_links):
+                        try:
+                            policy_date_str = policy_dates[i].text.strip()
+                            
+                            if not (start_date <= policy_date_str <= end_date):
+                                continue
+
+                            title = link_tag.text.strip()
+                            relative_url = link_tag['href']
+                            if relative_url.startswith('./'):
+                                relative_url = relative_url[2:]
+                            
+                            content_url = urllib.parse.urljoin(f"{base_url}/zhengce/", relative_url)
+
+                            all_policy_info.append({
+                                "title": title,
+                                "url": content_url,
+                                "publish_date": policy_date_str,
+                                "source": source,
+                            })
+                        except IndexError:
+                            logger.warning(f"解析政策列表时索引错误，跳过该条目。")
+                        except Exception as e:
+                            logger.warning(f"解析政策列表条目时出错: {e}")
+
+        except Exception as e:
+            logger.error(f"获取政策列表时发生错误: {e}")
             return []
+
+        tasks = [
+            self._process_single_policy(semaphore, policy_info)
+            for policy_info in all_policy_info
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        downloaded_files = [res for res in results if isinstance(res, dict)]
+        return downloaded_files
+
+    async def _process_single_policy(self, semaphore: asyncio.Semaphore, policy_info: Dict) -> Optional[Dict]:
+        """获取单个政策的内容并保存"""
+        async with semaphore:
+            async with aiohttp.ClientSession(headers=self.headers) as session:
+                content = await self._fetch_policy_content(session, policy_info["url"])
+                if content:
+                    policy_info["content"] = content
+                    file_path = await self._save_policy_file(policy_info)
+                    if file_path:
+                        del policy_info["content"]
+                        policy_info["file_path"] = file_path
+                        policy_info["collected_at"] = datetime.now().isoformat()
+                        return policy_info
+        return None
+
+    async def _fetch_policy_content(self, session: aiohttp.ClientSession, url: str) -> Optional[str]:
+        """获取单个政策页面的正文内容"""
+        from bs4 import BeautifulSoup
+
+        try:
+            await asyncio.sleep(0.5)
+            async with session.get(url, timeout=60) as response:
+                if response.status == 200:
+                    html = await response.text()
+                    soup = BeautifulSoup(html, 'lxml')
+                    content_div = soup.find('div', id='UCAP-CONTENT')
+                    if content_div:
+                        paragraphs = [p.get_text(strip=True) for p in content_div.find_all('p')]
+                        return "\n".join(paragraphs)
+                    else:
+                        logger.warning(f"在页面 {url} 中未找到ID为 'UCAP-CONTENT' 的内容区域")
+                        return None
+                else:
+                    logger.error(f"获取政策内容失败: {url}, 状态码: {response.status}")
+                    return None
+        except Exception as e:
+            logger.error(f"获取政策内容时发生错误: {url}, 错误: {e}")
+            return None
+
+    async def _save_policy_file(self, policy_info: Dict[str, Any]) -> str:
+        """将政策内容保存到文件"""
+        source = policy_info.get("source", "unknown")
+        title = policy_info.get("title", "untitled")
+        publish_date = policy_info.get("publish_date", "nodate")
+        content = policy_info.get("content", "")
+
+        source_dir = self.data_dir / source
+        source_dir.mkdir(parents=True, exist_ok=True)
+
+        safe_title = title.replace('/', '_').replace('\\', '_').replace(':', '：').replace('"', '“').replace('*', '_')
+        filename = f"{publish_date}_{safe_title}.txt"
+        file_path = source_dir / filename
+
+        try:
+            async with aiofiles.open(file_path, 'w', encoding='utf-8') as f:
+                await f.write(f"标题: {title}\n")
+                await f.write(f"发布日期: {publish_date}\n")
+                await f.write(f"来源URL: {policy_info.get('url', '')}\n\n")
+                await f.write(content)
+            logger.info(f"政策文件已保存: {file_path}")
+            return str(file_path)
+        except Exception as e:
+            logger.error(f"保存政策文件失败: {file_path}, 错误: {e}")
+            return ""
+                        
             
         except Exception as e:
             logger.warning(f"获取政策文件失败: {e}")
