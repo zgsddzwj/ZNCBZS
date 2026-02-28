@@ -79,6 +79,7 @@ class Settings(BaseSettings):
     DEFAULT_REPORT_YEARS_RANGE: int = 10
     DEFAULT_MACRO_DATA_DAYS_RANGE: int = 3650 # 10 years
     DEFAULT_POLICY_DATA_DAYS_RANGE: int = 30 # 30 days
+    COLLECTOR_USER_AGENT: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     A_SHARE_BANKS: List[str] = [
         "工商银行", "建设银行", "农业银行", "中国银行", "交通银行",
         "招商银行", "浦发银行", "兴业银行", "民生银行", "光大银行",

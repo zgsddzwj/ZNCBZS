@@ -152,7 +152,7 @@ class BankReportCollector:
         }
 
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': settings.COLLECTOR_USER_AGENT
         }
 
         try:
@@ -223,7 +223,7 @@ class MacroDataCollector:
         self.data_dir = Path("./data/raw/macro_data")
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': settings.COLLECTOR_USER_AGENT
         }
         # 指标到采集函数的映射
         self.indicator_map = {
@@ -548,7 +548,7 @@ class PolicyFileCollector:
         self.data_dir = Path("./data/raw/policy_files")
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            'User-Agent': settings.COLLECTOR_USER_AGENT
         }
         self.source_map = {
             "gov_cn": {
