@@ -51,7 +51,7 @@ class BankReportCollector:
         collected_reports = []
         
         # 并发采集（限制并发数）
-        semaphore = asyncio.Semaphore(5)  # 最多5个并发
+        semaphore = asyncio.Semaphore(settings.COLLECTOR_CONCURRENCY_LIMIT)
         
         tasks = []
         for bank in bank_names:
