@@ -119,7 +119,7 @@ class BankReportCollector:
         从巨潮资讯网获取财报信息
         """
         # 巨潮资讯网的查询API
-        query_url = "http://www.cninfo.com.cn/new/hisAnnouncement/query"
+        query_url = settings.CNINFO_QUERY_URL
         
         # 根据报告类型设置查询参数
         report_type_map = {

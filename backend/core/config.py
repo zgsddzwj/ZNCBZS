@@ -73,6 +73,7 @@ class Settings(BaseSettings):
 
     # 数据采集配置
     COLLECTOR_CONCURRENCY_LIMIT: int = 5
+    CNINFO_QUERY_URL: str = "http://www.cninfo.com.cn/new/hisAnnouncement/query"
     A_SHARE_BANKS: List[str] = [
         "工商银行", "建设银行", "农业银行", "中国银行", "交通银行",
         "招商银行", "浦发银行", "兴业银行", "民生银行", "光大银行",
