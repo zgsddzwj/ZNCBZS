@@ -687,7 +687,7 @@ class PolicyFileCollector:
         from bs4 import BeautifulSoup
 
         try:
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(settings.POLICY_COLLECTION_DELAY)
             async with session.get(url, timeout=60) as response:
                 if response.status == 200:
                     html = await response.text()
