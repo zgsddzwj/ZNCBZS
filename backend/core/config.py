@@ -76,6 +76,9 @@ class Settings(BaseSettings):
     CNINFO_QUERY_URL: str = "http://www.cninfo.com.cn/new/hisAnnouncement/query"
     NBS_QUERY_URL: str = "http://data.stats.gov.cn/easyquery.htm"
     EASTMONEY_QUERY_URL: str = "https://datacenter-web.eastmoney.com/api/data/v1/get"
+    DEFAULT_REPORT_YEARS_RANGE: int = 10
+    DEFAULT_MACRO_DATA_DAYS_RANGE: int = 3650 # 10 years
+    DEFAULT_POLICY_DATA_DAYS_RANGE: int = 30 # 30 days
     A_SHARE_BANKS: List[str] = [
         "工商银行", "建设银行", "农业银行", "中国银行", "交通银行",
         "招商银行", "浦发银行", "兴业银行", "民生银行", "光大银行",

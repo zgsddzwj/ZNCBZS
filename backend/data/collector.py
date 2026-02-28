@@ -43,7 +43,7 @@ class BankReportCollector:
         
         if years is None:
             current_year = datetime.now().year
-            years = list(range(current_year - 9, current_year + 1))
+            years = list(range(current_year - settings.DEFAULT_REPORT_YEARS_RANGE + 1, current_year + 1))
         
         if report_types is None:
             report_types = ["annual", "semi_annual", "quarterly"]
@@ -303,7 +303,7 @@ class MacroDataCollector:
             indicators = settings.MACRO_INDICATORS
 
         if start_date is None:
-            start_date = (datetime.now() - timedelta(days=365 * 10)).strftime("%Y-%m-%d")
+            start_date = (datetime.now() - timedelta(days=settings.DEFAULT_MACRO_DATA_DAYS_RANGE)).strftime("%Y-%m-%d")
 
         if end_date is None:
             end_date = datetime.now().strftime("%Y-%m-%d")
@@ -575,7 +575,7 @@ class PolicyFileCollector:
             sources = settings.POLICY_SOURCES
 
         if start_date is None:
-            start_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d") # 默认采集近30天
+            start_date = (datetime.now() - timedelta(days=settings.DEFAULT_POLICY_DATA_DAYS_RANGE)).strftime("%Y-%m-%d") # 默认采集近30天
 
         if end_date is None:
             end_date = datetime.now().strftime("%Y-%m-%d")
