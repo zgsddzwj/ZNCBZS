@@ -34,7 +34,9 @@ class ChatResponse(BaseModel):
 
 
 @router.post("/query", response_model=ChatResponse)
-async def chat_query(request: ChatRequest):
+async def chat_query(
+    request: ChatRequest, coordinator: Coordinator = Depends(get_coordinator)
+):
     """
     自然语言查询
     
@@ -43,8 +45,6 @@ async def chat_query(request: ChatRequest):
     - "分析招商银行近三年不良率变化原因"
     """
     try:
-        coordinator = Coordinator()
-        
         # 构建对话上下文
         context = ConversationContext(
             conversation_id=request.conversation_id,
@@ -81,10 +81,11 @@ async def get_conversation_history(
 
 
 @router.delete("/history/{conversation_id}")
-async def clear_conversation_history(conversation_id: str):
-    """清空对话历史"""
+async def clear_conversation_history(
+    conversation_id: str, coordinator: Coordinator = Depends(get_coordinator)
+):
+    """清除指定对话的上下文"""
     try:
-        coordinator = Coordinator()
         await coordinator.clear_conversation_history(conversation_id)
         return {"status": "success"}
     except Exception as e:
