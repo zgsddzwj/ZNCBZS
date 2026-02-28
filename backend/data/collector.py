@@ -359,7 +359,7 @@ class MacroDataCollector:
         """
         从国家统计局获取指标数据
         """
-        base_url = "http://data.stats.gov.cn/easyquery.htm"
+        base_url = settings.NBS_QUERY_URL
         params = self._build_stats_gov_params(indicator, start_date, end_date)
         if not params:
             logger.warning(f"无法为指标构建查询参数: {indicator}")
