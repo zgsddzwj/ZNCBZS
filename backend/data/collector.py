@@ -447,7 +447,7 @@ class MacroDataCollector:
     ) -> List[Dict[str, Any]]:
         """从东方财富网获取LPR数据"""
         logger.info("开始从东方财富网采集LPR数据...")
-        url = "https://datacenter-web.eastmoney.com/api/data/v1/get"
+        url = settings.EASTMONEY_QUERY_URL
         params = {
             "reportName": "RPT_LPR_HIST",
             "columns": "ALL",
@@ -501,7 +501,7 @@ class MacroDataCollector:
             logger.error(f"未找到指标 {indicator} 在 eastmoney_macro_params 中的配置")
             return []
 
-        url = "https://datacenter-web.eastmoney.com/api/data/v1/get"
+        url = settings.EASTMONEY_QUERY_URL
         params = {
             "reportName": param_config["reportName"],
             "columns": "ALL",
