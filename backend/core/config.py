@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "智能财报助手"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
-    SECRET_KEY: str = "dev-secret-key-change-in-production"
+    SECRET_KEY: str  # 必须从环境变量获取
     
     # 服务地址
     API_HOST: str = "0.0.0.0"
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     OPENAI_BASE_URL: str = "https://api.openai.com/v1"
     OPENAI_MODEL: str = "gpt-4-turbo-preview"
     
-    DEEPSEEK_API_KEY: str = "sk-a9323e658d5344dbbb09573ba9792459"
+    DEEPSEEK_API_KEY: str  # 必须从环境变量获取
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com/v1"
     DEEPSEEK_MODEL: str = "deepseek-chat"
     DEEPSEEK_EMBED_MODEL: str = "deepseek-embedding"
@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     # 知识图谱数据库 (Neo4j)
     NEO4J_URI: str = "bolt://localhost:7687"
     NEO4J_USER: str = "neo4j"
-    NEO4J_PASSWORD: str = "neo4j123456"
+    NEO4J_PASSWORD: str  # 必须从环境变量获取
     
     # 向量数据库 (Milvus)
     MILVUS_HOST: str = "localhost"
@@ -43,11 +43,11 @@ class Settings(BaseSettings):
     MILVUS_COLLECTION_NAME: str = "financial_reports"
     
     # 缓存 (Redis)
-    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_URL: str  # 建议从环境变量获取，包含敏感连接信息
     REDIS_CACHE_TTL: int = 3600
     
     # 数据库配置
-    DATABASE_URL: str = "sqlite:///./data/zncbzs.db"
+    DATABASE_URL: str  # 建议从环境变量获取，包含敏感连接信息
     
     # 文件存储
     UPLOAD_DIR: str = "./data/uploads"
@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     LOG_DIR: str = "./logs"
     
     # 安全配置
-    JWT_SECRET_KEY: str = "dev-jwt-secret"
+    JWT_SECRET_KEY: str  # 必须从环境变量获取
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_HOURS: int = 24
     
