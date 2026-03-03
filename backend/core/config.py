@@ -112,10 +112,12 @@ class Settings(BaseSettings):
         "资产收益率": "ROA",
     }
     
+    # Pydantic-Settings 配置
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
+        extra="ignore"  # 忽略在 Settings 中未定义的其他环境变量
     )
 
 
