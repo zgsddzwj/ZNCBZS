@@ -1,10 +1,10 @@
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-pydantic==2.5.0
-pydantic-settings==2.1.0
+fastapi==0.104.1  # Web框架
+uvicorn[standard]==0.24.0  # ASGI服务器
+pydantic==2.5.0  # 数据校验
+pydantic-settings==2.1.0  # 配置管理
 openai==1.6.1
-langchain==0.0.350
-langchain-openai==0.0.2
+langchain==0.0.350  # LLM应用开发框架
+langchain-openai==0.0.2  # LangChain与OpenAI集成
 sentence-transformers==2.2.2
 pymilvus==2.3.4
 faiss-cpu==1.7.4
