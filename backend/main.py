@@ -51,7 +51,7 @@ app.add_middleware(
 )
 
 # 注册路由
-app.include_router(router, prefix="/api/v1")
+app.include_router(router, prefix=settings.API_PREFIX)
 
 
 @app.get("/")

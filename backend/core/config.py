@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str  # 必须从环境变量获取
     
     # 服务地址
+    API_PREFIX: str = "/api/v1"
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000
     FRONTEND_URL: str = "http://localhost:3000"
