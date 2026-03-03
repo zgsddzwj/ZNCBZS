@@ -12,31 +12,31 @@ from backend.engine.coordinator import Coordinator
 
 @lru_cache()
 def get_llm_service() -> LLMService:
-    """获取LLM服务单例"""
+    """依赖注入：提供语言模型服务 (LLMService) 的单例。"""
     return LLMService()
 
 
 @lru_cache()
 def get_vector_store() -> VectorStore:
-    """获取向量数据库单例"""
+    """依赖注入：提供向量数据库 (VectorStore) 的单例。"""
     return VectorStore()
 
 
 @lru_cache()
 def get_knowledge_graph() -> KnowledgeGraph:
-    """获取知识图谱单例"""
+    """依赖注入：提供知识图谱 (KnowledgeGraph) 的单例。"""
     return KnowledgeGraph()
 
 
 @lru_cache()
 def get_bert_reranker() -> BERTReranker:
-    """获取Reranker模型单例"""
+    """依赖注入：提供 BERT Reranker 模型的单例。"""
     return BERTReranker()
 
 
 @lru_cache()
 def get_retrieval_engine() -> RetrievalEngine:
-    """获取检索服务单例"""
+    """依赖注入：提供检索服务 (RetrievalEngine) 的单例。"""
     return RetrievalEngine(
         llm_service=get_llm_service(),
         vector_store=get_vector_store(),
@@ -47,7 +47,7 @@ def get_retrieval_engine() -> RetrievalEngine:
 
 @lru_cache()
 def get_coordinator() -> Coordinator:
-    """获取协调器单例"""
+    """依赖注入：提供核心业务协调器 (Coordinator) 的单例。"""
     return Coordinator(
         llm_service=get_llm_service(),
         retrieval_engine=get_retrieval_engine(),
