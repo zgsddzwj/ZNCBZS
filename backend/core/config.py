@@ -3,7 +3,6 @@
 """
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
-from functools import lru_cache
 
 
 class Settings(BaseSettings):
@@ -121,11 +120,5 @@ class Settings(BaseSettings):
     )
 
 
-@lru_cache()
-def get_settings() -> Settings:
-    """获取配置实例（单例）"""
-    return Settings()
-
-
-settings = get_settings()
+settings = Settings()
 
