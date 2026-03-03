@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import uvicorn
+from loguru import logger
 
 from backend.api import router
 from backend.core.config import settings
@@ -18,6 +19,7 @@ async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时初始化
     setup_logging()
+    logger.info("应用启动中...")
     await init_storage()
     
     # 启动数据调度器
@@ -27,6 +29,7 @@ async def lifespan(app: FastAPI):
     yield
     
     # 关闭时清理
+    logger.info("应用关闭中...")
     from backend.services.scheduler import scheduler
     await scheduler.stop()
 
