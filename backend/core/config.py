@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     # 应用基础配置
     APP_NAME: str = "智能财报助手"
     APP_VERSION: str = "1.0.0"
-    DEBUG: bool = True
+    DEBUG: bool = False
     SECRET_KEY: str  # 必须从环境变量获取
     
     # 服务地址
@@ -56,6 +56,7 @@ class Settings(BaseSettings):
     # 日志配置
     LOG_LEVEL: str = "INFO"
     LOG_DIR: str = "./logs"
+    LOG_FILENAME: str = "app.log"
     
     # 安全配置
     JWT_SECRET_KEY: str  # 必须从环境变量获取
