@@ -33,7 +33,7 @@ class ChatResponse(BaseModel):
     sources: Optional[List[dict]] = None  # 引用的知识来源
 
 
-@router.post("/query", response_model=ChatResponse)
+@router.post("/query", response_model=ChatResponse, summary="执行自然语言查询")
 async def chat_query(
     request: ChatRequest, coordinator: Coordinator = Depends(get_coordinator)
 ):
@@ -67,7 +67,7 @@ async def chat_query(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/history/{conversation_id}")
+@router.get("/history/{conversation_id}", summary="获取指定对话的历史记录")
 async def get_conversation_history(
     conversation_id: str,
     coordinator: Coordinator = Depends(get_coordinator),
@@ -80,7 +80,7 @@ async def get_conversation_history(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.delete("/history/{conversation_id}")
+@router.delete("/history/{conversation_id}", summary="清除指定对话的历史记录")
 async def clear_conversation_history(
     conversation_id: str, coordinator: Coordinator = Depends(get_coordinator)
 ):
