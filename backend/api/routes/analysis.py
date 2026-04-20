@@ -1,9 +1,12 @@
 """
 深度分析API
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional
+
+from backend.api.deps import get_analysis_service
+from backend.services.analysis_service import AnalysisService
 
 router = APIRouter()
 
@@ -45,7 +48,10 @@ class IndustryComparisonRequest(BaseModel):
 
 
 @router.post("/attribution")
-async def analyze_attribution(request: AttributionRequest):
+async def analyze_attribution(
+    request: AttributionRequest,
+    service: AnalysisService = Depends(get_analysis_service),
+):
     """
     指标波动归因分析
     
@@ -53,9 +59,6 @@ async def analyze_attribution(request: AttributionRequest):
     示例：分析某公司Q3净利润下降10%的原因
     """
     try:
-        from backend.services.analysis_service import AnalysisService
-        
-        service = AnalysisService()
         result = await service.analyze_attribution(
             company=request.company,
             indicator=request.indicator,
@@ -68,16 +71,16 @@ async def analyze_attribution(request: AttributionRequest):
 
 
 @router.post("/risk")
-async def analyze_risk(request: RiskAnalysisRequest):
+async def analyze_risk(
+    request: RiskAnalysisRequest,
+    service: AnalysisService = Depends(get_analysis_service),
+):
     """
     风险预警分析
     
     识别财报中的风险信号
     """
     try:
-        from backend.services.analysis_service import AnalysisService
-        
-        service = AnalysisService()
         result = await service.analyze_risk(
             company=request.company,
             year=request.year,
@@ -89,16 +92,16 @@ async def analyze_risk(request: RiskAnalysisRequest):
 
 
 @router.post("/industry")
-async def compare_industry(request: IndustryComparisonRequest):
+async def compare_industry(
+    request: IndustryComparisonRequest,
+    service: AnalysisService = Depends(get_analysis_service),
+):
     """
     行业对标分析
     
     基于行业数据生成企业竞争力分析
     """
     try:
-        from backend.services.analysis_service import AnalysisService
-        
-        service = AnalysisService()
         result = await service.compare_industry(
             company=request.company,
             indicator=request.indicator,
@@ -114,6 +117,7 @@ async def analyze_trend(
     company: str,
     indicator: str,
     years: int = 5,
+    service: AnalysisService = Depends(get_analysis_service),
 ):
     """
     趋势分析
@@ -121,9 +125,6 @@ async def analyze_trend(
     分析某公司近N年的指标趋势
     """
     try:
-        from backend.services.analysis_service import AnalysisService
-        
-        service = AnalysisService()
         result = await service.analyze_trend(
             company=company,
             indicator=indicator,
@@ -135,16 +136,16 @@ async def analyze_trend(
 
 
 @router.post("/interpretation")
-async def deep_interpretation(request: DeepInterpretationRequest):
+async def deep_interpretation(
+    request: DeepInterpretationRequest,
+    service: AnalysisService = Depends(get_analysis_service),
+):
     """
     深度财报解读
     
     提取关键信息（管理层讨论与分析、风险提示、业务战略调整）
     """
     try:
-        from backend.services.analysis_service import AnalysisService
-        
-        service = AnalysisService()
         result = await service.deep_interpretation(
             company=request.company,
             year=request.year,
@@ -156,16 +157,16 @@ async def deep_interpretation(request: DeepInterpretationRequest):
 
 
 @router.post("/predict")
-async def predict_trend(request: PredictRequest):
+async def predict_trend(
+    request: PredictRequest,
+    service: AnalysisService = Depends(get_analysis_service),
+):
     """
     趋势预测
     
     预测未来1-2年的核心指标，附带置信度
     """
     try:
-        from backend.services.analysis_service import AnalysisService
-        
-        service = AnalysisService()
         result = await service.predict_trend(
             company=request.company,
             indicator=request.indicator,
@@ -174,4 +175,3 @@ async def predict_trend(request: PredictRequest):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-

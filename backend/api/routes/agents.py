@@ -4,11 +4,12 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
+
+from backend.api.deps import get_agent_manager
 from backend.services.agents import AgentManager
 from backend.core.auth import get_current_user, require_role, UserRole
 
 router = APIRouter()
-agent_manager = AgentManager()
 
 
 class AgentExecuteRequest(BaseModel):
@@ -27,15 +28,18 @@ class CustomAgentRequest(BaseModel):
 
 
 @router.get("/list")
-async def list_agents():
+async def list_agents(
+    manager: AgentManager = Depends(get_agent_manager),
+):
     """列出所有预置智能体"""
-    agents = agent_manager.list_agents()
+    agents = manager.list_agents()
     return {"agents": agents}
 
 
 @router.post("/execute")
 async def execute_agent(
     request: AgentExecuteRequest,
+    manager: AgentManager = Depends(get_agent_manager),
     current_user: dict = Depends(get_current_user),
 ):
     """
@@ -46,13 +50,15 @@ async def execute_agent(
     - SWOT分析：{"agent_id": "swot", "query": "分析某银行零售业务", "context": {...}}
     """
     try:
-        agent = agent_manager.get_agent(request.agent_id)
+        agent = manager.get_agent(request.agent_id)
         if not agent:
             raise HTTPException(status_code=404, detail="智能体不存在")
         
         result = await agent.execute(request.query, request.context)
         return result
         
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -60,6 +66,7 @@ async def execute_agent(
 @router.post("/create", dependencies=[Depends(require_role(UserRole.ADMIN, UserRole.SENIOR))])
 async def create_custom_agent(
     request: CustomAgentRequest,
+    manager: AgentManager = Depends(get_agent_manager),
     current_user: dict = Depends(get_current_user),
 ):
     """
@@ -72,7 +79,7 @@ async def create_custom_agent(
     4. 测试与上线
     """
     try:
-        agent_id = await agent_manager.create_custom_agent(
+        agent_id = await manager.create_custom_agent(
             name=request.name,
             description=request.description,
             knowledge_base=request.knowledge_base,
@@ -89,9 +96,12 @@ async def create_custom_agent(
 
 
 @router.get("/{agent_id}")
-async def get_agent_info(agent_id: str):
+async def get_agent_info(
+    agent_id: str,
+    manager: AgentManager = Depends(get_agent_manager),
+):
     """获取智能体信息"""
-    agent = agent_manager.get_agent(agent_id)
+    agent = manager.get_agent(agent_id)
     if not agent:
         raise HTTPException(status_code=404, detail="智能体不存在")
     
@@ -101,4 +111,3 @@ async def get_agent_info(agent_id: str):
         "description": agent.description,
         "knowledge_base": agent.knowledge_base,
     }
-

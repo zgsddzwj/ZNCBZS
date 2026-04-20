@@ -5,18 +5,40 @@ from typing import Dict, Any, List, Optional
 from loguru import logger
 from backend.engine.llm_service import LLMService
 from backend.data.storage import KnowledgeGraph, VectorStore
+from backend.engine.retrieval import RetrievalEngine
 
 
 class Agent:
     """智能体基类"""
     
-    def __init__(self, name: str, description: str, knowledge_base: Optional[str] = None):
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        knowledge_base: Optional[str] = None,
+        llm_service: Optional[LLMService] = None,
+        knowledge_graph: Optional[KnowledgeGraph] = None,
+        vector_store: Optional[VectorStore] = None,
+        retrieval_engine: Optional[RetrievalEngine] = None,
+    ):
         self.name = name
         self.description = description
         self.knowledge_base = knowledge_base
-        self.llm_service = LLMService()
-        self.knowledge_graph = KnowledgeGraph()
-        self.vector_store = VectorStore()
+        # 支持外部注入依赖（单例复用），未传入时才创建新实例
+        self.llm_service = llm_service or LLMService()
+        self.knowledge_graph = knowledge_graph or KnowledgeGraph()
+        self.vector_store = vector_store or VectorStore()
+        self._retrieval_engine = retrieval_engine
+    
+    def _get_retrieval_engine(self) -> RetrievalEngine:
+        """获取检索引擎，优先使用注入的单例实例"""
+        if self._retrieval_engine:
+            return self._retrieval_engine
+        return RetrievalEngine(
+            llm_service=self.llm_service,
+            knowledge_graph=self.knowledge_graph,
+            vector_store=self.vector_store,
+        )
     
     async def execute(self, query: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """执行智能体任务"""
@@ -144,9 +166,8 @@ class SWOTAgent(Agent):
 返回JSON格式。
 """
             
-            # 检索相关知识
-            from backend.engine.retrieval import RetrievalEngine
-            retrieval = RetrievalEngine()
+            # 检索相关知识（复用单例检索引擎）
+            retrieval = self._get_retrieval_engine()
             docs = await retrieval.retrieve(query=entity_info, top_k=10)
             
             knowledge_text = "\n".join([d.get("content", "")[:500] for d in docs[:5]])
@@ -182,9 +203,8 @@ class CreditQAAgent(Agent):
     async def execute(self, query: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """回答信贷相关问题"""
         try:
-            # 检索信贷政策知识
-            from backend.engine.retrieval import RetrievalEngine
-            retrieval = RetrievalEngine()
+            # 检索信贷政策知识（复用单例检索引擎）
+            retrieval = self._get_retrieval_engine()
             docs = await retrieval.retrieve(
                 query=query,
                 top_k=10,
@@ -236,8 +256,8 @@ class RetailTransformationAgent(Agent):
     async def execute(self, query: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """零售转型分析"""
         try:
-            from backend.engine.retrieval import RetrievalEngine
-            retrieval = RetrievalEngine()
+            # 复用单例检索引擎
+            retrieval = self._get_retrieval_engine()
             docs = await retrieval.retrieve(
                 query=query,
                 top_k=15,
@@ -366,13 +386,26 @@ class DocumentWritingAgent(Agent):
 class AgentManager:
     """智能体管理器"""
     
-    def __init__(self):
+    def __init__(
+        self,
+        llm_service: Optional[LLMService] = None,
+        knowledge_graph: Optional[KnowledgeGraph] = None,
+        vector_store: Optional[VectorStore] = None,
+        retrieval_engine: Optional[RetrievalEngine] = None,
+    ):
+        # 共享依赖实例，传递给所有 Agent
+        self._shared_kwargs = dict(
+            llm_service=llm_service,
+            knowledge_graph=knowledge_graph,
+            vector_store=vector_store,
+            retrieval_engine=retrieval_engine,
+        )
         self.agents: Dict[str, Agent] = {
-            "boston_matrix": BostonMatrixAgent(),
-            "swot": SWOTAgent(),
-            "credit_qa": CreditQAAgent(),
-            "retail_transformation": RetailTransformationAgent(),
-            "document_writing": DocumentWritingAgent(),
+            "boston_matrix": BostonMatrixAgent(**self._shared_kwargs),
+            "swot": SWOTAgent(**self._shared_kwargs),
+            "credit_qa": CreditQAAgent(**self._shared_kwargs),
+            "retail_transformation": RetailTransformationAgent(**self._shared_kwargs),
+            "document_writing": DocumentWritingAgent(**self._shared_kwargs),
         }
     
     def get_agent(self, agent_id: str) -> Optional[Agent]:
@@ -401,13 +434,15 @@ class AgentManager:
         # 生成智能体ID
         agent_id = f"custom_{len(self.agents)}"
         
-        # 创建自定义智能体
+        # 创建自定义智能体（同样注入共享依赖）
         class CustomAgent(Agent):
-            def __init__(self, name, description, knowledge_base, capabilities):
-                super().__init__(name, description, knowledge_base)
+            def __init__(self, name, description, knowledge_base, capabilities, **kwargs):
+                super().__init__(name, description, knowledge_base, **kwargs)
                 self.capabilities = capabilities or []
         
-        self.agents[agent_id] = CustomAgent(name, description, knowledge_base, capabilities)
+        self.agents[agent_id] = CustomAgent(
+            name, description, knowledge_base, capabilities, **self._shared_kwargs
+        )
         
         return agent_id
 

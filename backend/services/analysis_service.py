@@ -12,9 +12,14 @@ from backend.models.attribution.xgboost_attribution import XGBoostAttributionMod
 class AnalysisService:
     """分析服务"""
     
-    def __init__(self):
-        self.llm_service = LLMService()
-        self.knowledge_graph = KnowledgeGraph()
+    def __init__(
+        self,
+        llm_service: Optional[LLMService] = None,
+        knowledge_graph: Optional[KnowledgeGraph] = None,
+    ):
+        # 支持外部注入依赖（单例复用），未传入时才创建新实例
+        self.llm_service = llm_service or LLMService()
+        self.knowledge_graph = knowledge_graph or KnowledgeGraph()
         self.alert_service = AlertService()
         self.attribution_model = XGBoostAttributionModel()  # XGBoost归因模型
     
@@ -349,10 +354,13 @@ class AnalysisService:
         提取关键信息（管理层讨论与分析、风险提示、业务战略调整）
         """
         try:
-            # 检索财报文本
+            # 检索财报文本（复用检索引擎）
             query = f"{company} {year} {report_type} 财报文本"
             from backend.engine.retrieval import RetrievalEngine
-            retrieval = RetrievalEngine()
+            retrieval = RetrievalEngine(
+                llm_service=self.llm_service,
+                knowledge_graph=self.knowledge_graph,
+            )
             docs = await retrieval.retrieve(query, top_k=20)
             
             # 提取关键信息

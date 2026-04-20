@@ -11,6 +11,7 @@ from loguru import logger
 from backend.api import router
 from backend.core.config import settings
 from backend.core.logging import setup_logging
+from backend.core.middleware import GlobalExceptionHandler, RequestLoggingMiddleware
 from backend.data.storage import init_storage
 
 
@@ -41,7 +42,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS配置
+# 中间件注册（注意顺序：最后注册的最先执行）
+app.add_middleware(GlobalExceptionHandler)
+app.add_middleware(RequestLoggingMiddleware)
+
+# CORS配置（中间件栈中最后注册的先执行，CORS应最先执行）
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
