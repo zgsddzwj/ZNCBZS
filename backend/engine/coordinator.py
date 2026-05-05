@@ -217,30 +217,85 @@ class Coordinator:
             formatted.append(f"{role}: {content}")
         return "\n".join(formatted)
     
+    # 完整的A股上市银行列表（按匹配优先级排序，长的名称在前）
+    _BANK_LIST: List[str] = [
+        "工商银行", "建设银行", "农业银行", "中国银行", "交通银行",
+        "招商银行", "浦发银行", "兴业银行", "民生银行", "光大银行",
+        "华夏银行", "平安银行", "中信银行", "北京银行", "上海银行",
+        "江苏银行", "宁波银行", "南京银行", "杭州银行", "成都银行",
+        "长沙银行", "西安银行", "贵阳银行", "郑州银行", "青岛银行",
+        "苏州银行", "厦门银行", "重庆银行", "齐鲁银行", "兰州银行",
+        "瑞丰银行", "常熟银行", "张家港行", "江阴银行", "无锡银行",
+        "苏农银行", "紫金银行", "青农商行", "渝农商行", "沪农商行",
+        "邮储银行", "浙商银行",
+    ]
+    
+    # 常见非银行上市公司
+    _COMPANY_LIST: List[str] = [
+        "贵州茅台", "五粮液", "中国移动", "中国平安", "比亚迪",
+        "宁德时代", "腾讯控股", "阿里巴巴", "美团", "京东",
+    ]
+    
+    # 完整的财务指标关键词映射
+    _INDICATOR_MAP: Dict[str, List[str]] = {
+        "营收": ["营业收入", "营业总收入", "主营业务收入", "营收合计"],
+        "净利润": ["净利润", "归母净利润", "归属于母公司所有者的净利润"],
+        "不良率": ["不良贷款率", "不良率", "NPL比率"],
+        "ROE": ["净资产收益率", "ROE", "股东权益报酬率"],
+        "拨备覆盖率": ["拨备覆盖率", "拨备"],
+        "净息差": ["净息差", "NIM", "净利息收益率"],
+        "总资产": ["总资产", "资产总计"],
+        "总负债": ["总负债", "负债合计"],
+        "资本充足率": ["资本充足率", "CAR"],
+        "资产负债率": ["资产负债率", "杠杆率"],
+        "流动比率": ["流动比率", "流动性比率"],
+        "毛利率": ["毛利率", "毛利润率"],
+    }
+    
     def _extract_company(self, text: str) -> Optional[str]:
-        """提取公司名称（简化版）"""
-        # 这里应该使用NER模型或规则
-        companies = ["贵州茅台", "招商银行", "工商银行", "建设银行", "中国银行"]
-        for company in companies:
+        """提取公司名称（基于完整银行列表 + 常见上市公司）"""
+        # 按优先级遍历，长的名称先匹配避免短名误匹配
+        for company in self._BANK_LIST + self._COMPANY_LIST:
             if company in text:
                 return company
         return None
     
     def _extract_indicator(self, text: str) -> Optional[str]:
-        """提取指标名称（简化版）"""
-        indicators = ["营收", "净利润", "不良率", "ROE", "拨备覆盖率", "净息差"]
-        for indicator in indicators:
-            if indicator in text:
-                return indicator
+        """提取指标名称（支持多种别名映射）"""
+        for standard_name, aliases in self._INDICATOR_MAP.items():
+            for alias in aliases:
+                if alias in text:
+                    return standard_name
         return None
     
     def _extract_time(self, text: str) -> Optional[Dict[str, Any]]:
-        """提取时间信息（简化版）"""
+        """提取时间信息（支持年份、季度、半年度）"""
         import re
+        result = {}
+        
+        # 提取年份
         year_match = re.search(r"20\d{2}", text)
         if year_match:
-            return {"year": int(year_match.group())}
-        return None
+            result["year"] = int(year_match.group())
+        
+        # 提取季度
+        quarter_match = re.search(r"第?[一二三四]季度|Q[1-4]", text)
+        if quarter_match:
+            quarter_map = {"一": 1, "二": 2, "三": 3, "四": 4,
+                          "1": 1, "2": 2, "3": 3, "4": 4}
+            q_text = quarter_match.group()
+            for k, v in quarter_map.items():
+                if k in q_text:
+                    result["quarter"] = v
+                    break
+        
+        # 判断是否为半年度/年度报告
+        if "半年" in text or "中期" in text:
+            result["period"] = "semi_annual"
+        elif "年度" in text or "年报" in text:
+            result["period"] = "annual"
+        
+        return result if result else None
     
     async def get_conversation_history(self, conversation_id: str) -> List[Dict[str, Any]]:
         """获取对话历史"""
