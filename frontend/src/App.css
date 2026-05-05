@@ -8,3 +8,116 @@
   max-width: 1200px;
   margin: 0 auto;
 }
+
+/* ==================== Header 样式 ==================== */
+.app-header {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  z-index: 10;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-title {
+  color: #fff !important;
+  margin: 0 !important;
+  font-size: 20px !important;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-status {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #52c41a;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(82, 196, 26, 0.4); }
+  50% { opacity: 0.8; box-shadow: 0 0 0 4px rgba(82, 196, 26, 0); }
+}
+
+/* ==================== Sider 样式 ==================== */
+.app-sider {
+  background: #fff !important;
+  border-right: 1px solid #f0f0f0 !important;
+}
+
+/* ==================== 面包屑导航 ==================== */
+.breadcrumb-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.breadcrumb-bar .ant-breadcrumb {
+  font-size: 13px;
+}
+
+.breadcrumb-path {
+  font-size: 12px;
+  color: #bbb;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+}
+
+/* ==================== Content 样式 ==================== */
+.app-content {
+  padding: 24px !important;
+  background: #f5f5f5 !important;
+  min-height: calc(100vh - 112px - 48px - 69px);
+}
+
+/* ==================== Footer 样式 ==================== */
+.app-footer {
+  text-align: center !important;
+  padding: 16px 24px !important;
+  background: #fafafa !important;
+  border-top: 1px solid #f0f0f0 !important;
+  color: #999 !important;
+  font-size: 13px !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.footer-divider {
+  color: #ddd !important;
+}
+
+.footer-link {
+  color: #1890ff !important;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.footer-link:hover {
+  color: #40a9ff !important;
+  text-decoration: underline;
+}
