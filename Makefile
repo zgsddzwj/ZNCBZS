@@ -3,11 +3,11 @@
 help:
 	@echo "智能财报助手 - 开发命令"
 	@echo ""
-	@echo "  make install    - 使用 uv 安装 Python 依赖"
+	@echo "  make install    - 用 uv 安装 Python 依赖"
 	@echo "  make dev        - 启动开发服务器（热重载）"
 	@echo "  make test       - 运行测试"
-	@echo "  make lint       - 代码检查（ruff + mypy）"
-	@echo "  make format     - 代码格式化（black + ruff）"
+	@echo "  make lint       - 代码检查 (ruff + mypy)"
+	@echo "  make format     - 代码格式化 (black + ruff)"
 	@echo "  make docker-up  - 启动 Docker 服务"
 	@echo "  make docker-down - 停止 Docker 服务"
 	@echo "  make clean      - 清理临时文件"
@@ -19,7 +19,7 @@ dev:
 	cd backend && uv run uvicorn main:app --reload
 
 test:
-	uv run pytest backend/tests/
+	uv run pytest backend/tests/ -v
 
 lint:
 	uv run ruff check backend/
