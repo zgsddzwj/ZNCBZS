@@ -1,0 +1,105 @@
+[project]
+name = "zncbzs"
+version = "1.0.0"
+description = "基于大模型 + 知识增强的财务分析工具"
+readme = "README.md"
+requires-python = ">=3.10,<3.13"
+license = { text = "MIT" }
+keywords = ["financial", "llm", "rag", "report-analysis", "banking"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial",
+]
+
+dependencies = [
+    "fastapi>=0.104.1,<0.105",
+    "uvicorn[standard]>=0.24.0,<0.25",
+    "pydantic>=2.5.0,<3.0",
+    "pydantic-settings>=2.1.0,<3.0",
+    "openai>=1.6.1,<2.0",
+    "langchain>=0.0.350,<0.1",
+    "langchain-openai>=0.0.2,<0.1",
+    "sentence-transformers>=2.2.2,<3.0",
+    "pymilvus>=2.3.4,<3.0",
+    "faiss-cpu>=1.7.4,<2.0",
+    "neo4j>=5.14.0,<6.0",
+    "py2neo>=2021.2.4",
+    "pandas>=2.1.3,<3.0",
+    "numpy>=1.26.2,<2.0",
+    "openpyxl>=3.1.2,<4.0",
+    "pdfplumber>=0.10.3,<0.11",
+    "python-docx>=1.1.0,<2.0",
+    "pypdf2>=3.0.1,<4.0",
+    "pytesseract>=0.3.10,<0.4",
+    "pillow>=10.1.0,<11.0",
+    "opencv-python>=4.8.1.78,<5.0",
+    "redis>=5.0.1,<6.0",
+    "sqlalchemy>=2.0.23,<3.0",
+    "alembic>=1.12.1,<2.0",
+    "python-jose[cryptography]>=3.3.0,<4.0",
+    "passlib[bcrypt]>=1.7.4,<2.0",
+    "bcrypt>=3.2.2,<4.0",
+    "python-multipart>=0.0.6,<0.1",
+    "aiofiles>=23.2.1,<24.0",
+    "cryptography>=41.0.7,<42.0",
+    "email-validator>=2.2.0,<3.0",
+    "httpx>=0.25.1,<0.26",
+    "aiohttp>=3.9.1,<4.0",
+    "loguru>=0.7.2,<0.8",
+    "prometheus-client>=0.19.0,<0.20",
+    "pytest>=7.4.3,<8.0",
+    "pytest-asyncio>=0.21.1,<0.22",
+    "SpeechRecognition>=3.10.0,<4.0",
+    "pyttsx3>=2.90,<3.0",
+    "pydub>=0.25.1,<0.26",
+    "torch>=2.1.0,<2.2",
+    "transformers>=4.35.2,<5.0",
+    "peft>=0.7.1,<0.8",
+    "datasets>=2.14.7,<3.0",
+    "xgboost>=2.0.3,<3.0",
+    "scikit-learn>=1.3.2,<2.0",
+    "joblib>=1.3.2,<2.0",
+    "shap>=0.43.0,<0.44",
+    "python-dotenv>=1.0.0,<2.0",
+    "pyyaml>=6.0.1,<7.0",
+    "click>=8.1.7,<9.0",
+    "huggingface-hub>=0.22,<1.0",
+    "accelerate>=0.30,<0.31",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=23.0,<24.0",
+    "ruff>=0.1.0,<0.2.0",
+    "mypy>=1.7.0,<2.0",
+]
+
+[project.scripts]
+zncbzs = "backend.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend"]
+
+[tool.uv]
+python-preference = "only-managed"
+
+[tool.uv.pip]
+index-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+
+[tool.black]
+line-length = 100
+target-version = ["py310", "py311", "py312"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
