@@ -1,4 +1,5 @@
 import axios from "axios";
+import { useAppStore } from "../stores/useAppStore";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
@@ -13,6 +14,7 @@ const api = axios.create({
  * 请求拦截器
  * - 自动附加认证 token（如有）
  * - 记录请求日志（开发环境）
+ * - 自动触发全局Loading
  */
 api.interceptors.request.use(
   (config) => {
@@ -20,6 +22,12 @@ api.interceptors.request.use(
     const token = localStorage.getItem("token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    // 全局Loading: 排除聊天流式请求和轮询请求
+    const skipLoading = config.skipGlobalLoading || config.url?.includes("/chat/query");
+    if (!skipLoading) {
+      useAppStore.getState().startLoading("请求中...");
     }
 
     // 开发环境打印请求信息
@@ -32,6 +40,7 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
+    useAppStore.getState().stopLoading();
     return Promise.reject(error);
   }
 );
@@ -41,12 +50,16 @@ api.interceptors.request.use(
  * - 统一错误处理
  * - 401 自动跳转登录
  * - 网络错误友好提示
+ * - 自动关闭全局Loading
  */
 api.interceptors.response.use(
   (response) => {
+    useAppStore.getState().stopLoading();
     return response;
   },
   (error) => {
+    useAppStore.getState().stopLoading();
+
     const { response } = error;
 
     if (response) {
@@ -54,7 +67,6 @@ api.interceptors.response.use(
 
       switch (status) {
         case 401:
-          // 未授权，清除 token 并跳转登录页
           localStorage.removeItem("token");
           window.location.href = "/login";
           break;
@@ -73,7 +85,6 @@ api.interceptors.response.use(
           }
       }
     } else {
-      // 网络错误或超时
       console.error("❌ 网络连接失败，请检查网络后重试");
     }
 
