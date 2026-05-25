@@ -305,6 +305,51 @@
   50% { opacity: 0.4; }
 }
 
+/* ==================== 消息头部 ==================== */
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.message-role-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1890ff;
+}
+
+.message-bubble.user .message-role-label {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.message-time {
+  font-size: 11px;
+  color: #bbb;
+  display: flex;
+  align-items: center;
+}
+
+.message-bubble.user .message-time {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* ==================== 打字机光标 ==================== */
+.typing-cursor {
+  display: inline-block;
+  color: #1890ff;
+  font-weight: bold;
+  animation: blink-cursor 0.8s step-end infinite;
+  margin-left: 2px;
+}
+
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
 /* 输入区域 */
 .chat-input {
   display: flex;

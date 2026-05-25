@@ -1,14 +1,73 @@
-import React, { useState, useRef, useEffect } from 'react'
-import { Input, Button, List, Card, Spin, Tag } from 'antd'
-import { SendOutlined, CopyOutlined, CheckOutlined } from '@ant-design/icons'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
+import { Input, Button, List, Card, Spin, Tag, Tooltip } from 'antd'
+import { SendOutlined, CopyOutlined, CheckOutlined, ClockCircleOutlined } from '@ant-design/icons'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { chatQuery } from '../api/chat'
 import './ChatPage.css'
 
 /**
- * Markdown 渲染组件 - 用于 AI 回复的富文本展示
- * 支持：标题、列表、表格、代码块、粗体、链接等
+ * 打字机效果 Hook
+ * @param {string} fullText - 完整文本
+ * @param {number} speed - 打字速度(ms)
+ * @param {boolean} enabled - 是否启用
+ */
+function useTypewriter(fullText, speed = 15, enabled = true) {
+  const [displayText, setDisplayText] = useState('')
+  const [isTyping, setIsTyping] = useState(false)
+  const indexRef = useRef(0)
+  const timerRef = useRef(null)
+
+  useEffect(() => {
+    if (!enabled || !fullText) {
+      setDisplayText(fullText || '')
+      setIsTyping(false)
+      return
+    }
+
+    setIsTyping(true)
+    indexRef.current = 0
+    setDisplayText('')
+
+    const typeNext = () => {
+      if (indexRef.current < fullText.length) {
+        // 每次渲染一个字符或一个markdown标记（优化体验）
+        const nextChunk = fullText.slice(0, indexRef.current + 1)
+        setDisplayText(nextChunk)
+        indexRef.current += 1
+        timerRef.current = setTimeout(typeNext, speed)
+      } else {
+        setIsTyping(false)
+      }
+    }
+
+    timerRef.current = setTimeout(typeNext, speed)
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [fullText, speed, enabled])
+
+  return { displayText, isTyping }
+}
+
+/**
+ * 格式化时间显示
+ */
+function formatTime(timestamp) {
+  if (!timestamp) return ''
+  const date = new Date(timestamp)
+  const now = new Date()
+  const isToday = date.toDateString() === now.toDateString()
+
+  if (isToday) {
+    return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+  }
+  return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+/**
+ * Markdown 渲染组件
  */
 function MarkdownContent({ content }) {
   return (
@@ -21,10 +80,11 @@ function MarkdownContent({ content }) {
 }
 
 /**
- * 可复制消息组件
+ * 可复制消息组件（带打字机效果）
  */
-function CopyableMessage({ content }) {
+function CopyableMessage({ content, isStreaming }) {
   const [copied, setCopied] = useState(false)
+  const { displayText, isTyping } = useTypewriter(content, 12, isStreaming)
 
   const handleCopy = async () => {
     try {
@@ -36,9 +96,12 @@ function CopyableMessage({ content }) {
     }
   }
 
+  const textToShow = isStreaming ? displayText : content
+
   return (
     <div className="message-wrapper">
-      <MarkdownContent content={content} />
+      <MarkdownContent content={textToShow} />
+      {isTyping && <span className="typing-cursor">|</span>}
       <Button
         type="text"
         size="small"
@@ -51,27 +114,44 @@ function CopyableMessage({ content }) {
   )
 }
 
+/**
+ * 消息时间戳组件
+ */
+function MessageTime({ timestamp }) {
+  const timeStr = formatTime(timestamp)
+  if (!timeStr) return null
+
+  return (
+    <Tooltip title={new Date(timestamp).toLocaleString('zh-CN')}>
+      <span className="message-time">
+        <ClockCircleOutlined style={{ fontSize: 10, marginRight: 3 }} />
+        {timeStr}
+      </span>
+    </Tooltip>
+  )
+}
+
 export default function ChatPage() {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [conversationId, setConversationId] = useState(null)
+  const [streamingIndex, setStreamingIndex] = useState(null)
   const messagesEndRef = useRef(null)
 
-  // 快捷问题示例
   const quickQuestions = [
     "贵州茅台2023年营收同比增长多少？",
     "分析招商银行近三年不良率变化原因",
     "对比工行与建行的拨备覆盖率",
   ]
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
+  }, [])
 
   useEffect(() => {
     scrollToBottom()
-  }, [messages])
+  }, [messages, scrollToBottom])
 
   const handleSend = async (text) => {
     const messageText = text || input
@@ -95,6 +175,9 @@ export default function ChatPage() {
       })
 
       setConversationId(response.conversation_id)
+
+      // 先添加空消息占位，再触发打字机效果
+      const assistantIndex = messages.length + 1
       setMessages((prev) => [
         ...prev,
         {
@@ -104,6 +187,14 @@ export default function ChatPage() {
           sources: response.sources,
         },
       ])
+      setStreamingIndex(assistantIndex)
+
+      // 打字完成后清除 streaming 状态
+      const typingDuration = response.response.length * 12 + 300
+      setTimeout(() => {
+        setStreamingIndex(null)
+      }, typingDuration)
+
     } catch (error) {
       console.error('发送消息失败:', error)
       setMessages((prev) => [
@@ -150,22 +241,31 @@ export default function ChatPage() {
           )}
           <List
             dataSource={messages}
-            renderItem={(item) => (
+            renderItem={(item, index) => (
               <List.Item
                 className={`chat-message ${item.role}`}
                 style={{ border: 'none', padding: '12px 0' }}
               >
                 <div className={`message-bubble ${item.role} ${item.isError ? 'error' : ''}`}>
+                  <div className="message-header">
+                    <span className="message-role-label">
+                      {item.role === 'user' ? '您' : 'AI助手'}
+                    </span>
+                    <MessageTime timestamp={item.timestamp} />
+                  </div>
                   <div className="message-content">
                     {item.role === 'assistant' ? (
-                      <CopyableMessage content={item.content} />
+                      <CopyableMessage
+                        content={item.content}
+                        isStreaming={index === streamingIndex}
+                      />
                     ) : (
                       item.content
                     )}
                   </div>
                   {item.sources && item.sources.length > 0 && (
                     <div className="message-sources">
-                      <span className="sources-label">📚 参考来源：</span>
+                      <span className="sources-label">参考来源：</span>
                       {item.sources.map((source, idx) => (
                         <span key={idx} className="source-tag">
                           {source.source}
@@ -182,7 +282,7 @@ export default function ChatPage() {
               </List.Item>
             )}
           />
-          {loading && (
+          {loading && streamingIndex === null && (
             <div className="chat-loading">
               <Spin size="small" />
               <span className="loading-text">正在思考...</span>
