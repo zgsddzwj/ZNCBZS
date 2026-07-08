@@ -12,7 +12,38 @@ from backend.api import router
 from backend.core.config import settings
 from backend.core.logging import setup_logging
 from backend.core.middleware import GlobalExceptionHandler, RequestLoggingMiddleware
+from backend.core.auth import get_password_hash, UserRole
 from backend.data.storage import init_storage
+from backend.data.database import init_db, SessionLocal
+from backend.models.user import User
+from sqlalchemy import select
+
+
+def _create_initial_admin():
+    """首次启动时从环境变量创建初始管理员账户"""
+    if not settings.INITIAL_ADMIN_PASSWORD:
+        logger.warning("未配置 INITIAL_ADMIN_PASSWORD，跳过初始管理员创建。请在 .env 中设置。")
+        return
+
+    db = SessionLocal()
+    try:
+        existing = db.execute(
+            select(User).where(User.username == settings.INITIAL_ADMIN_USERNAME)
+        ).scalar_one_or_none()
+        if existing:
+            return
+
+        admin = User(
+            username=settings.INITIAL_ADMIN_USERNAME,
+            email=settings.INITIAL_ADMIN_EMAIL,
+            hashed_password=get_password_hash(settings.INITIAL_ADMIN_PASSWORD),
+            role=UserRole.ADMIN,
+        )
+        db.add(admin)
+        db.commit()
+        logger.info(f"初始管理员账户已创建: {settings.INITIAL_ADMIN_USERNAME}")
+    finally:
+        db.close()
 
 
 @asynccontextmanager
@@ -21,6 +52,13 @@ async def lifespan(app: FastAPI):
     # 启动时初始化
     setup_logging()
     logger.info("应用启动中...")
+
+    # 初始化数据库表
+    init_db()
+
+    # 首次启动时创建初始管理员账户
+    _create_initial_admin()
+
     await init_storage()
     
     # 启动数据调度器

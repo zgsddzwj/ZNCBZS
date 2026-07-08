@@ -62,6 +62,11 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str  # 必须从环境变量获取
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_HOURS: int = 24
+
+    # 初始管理员配置（首次启动时自动创建）
+    INITIAL_ADMIN_USERNAME: str = "admin"
+    INITIAL_ADMIN_EMAIL: str = "admin@example.com"
+    INITIAL_ADMIN_PASSWORD: str = ""  # 必须从环境变量设置
     
     # 性能配置
     MAX_CONCURRENT_REQUESTS: int = 100
