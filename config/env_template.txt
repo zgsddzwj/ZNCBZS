@@ -1,7 +1,7 @@
 # 应用配置
 APP_NAME=智能财报助手
 APP_VERSION=1.0.0
-DEBUG=True
+DEBUG=False
 SECRET_KEY=your-secret-key-here-change-in-production
 
 # 服务地址

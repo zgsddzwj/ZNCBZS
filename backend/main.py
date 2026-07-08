@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
+import os
 import uvicorn
 from loguru import logger
 
@@ -114,6 +115,11 @@ async def health_check():
 
 
 if __name__ == "__main__":
+    # 生产环境安全断言
+    env = os.getenv("APP_ENV", "development")
+    if env == "production" and settings.DEBUG:
+        raise RuntimeError("DEBUG must be False in production (APP_ENV=production)")
+
     uvicorn.run(
         "main:app",
         host=settings.API_HOST,
