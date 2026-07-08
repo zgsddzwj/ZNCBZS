@@ -7,6 +7,7 @@ from backend.engine.llm_service import LLMService
 from backend.data.storage import KnowledgeGraph
 from backend.services.alert_service import AlertService
 from backend.models.attribution.xgboost_attribution import XGBoostAttributionModel
+from backend.core.prompt_security import build_safe_prompt, sanitize_user_input
 
 
 class AnalysisService:
@@ -126,17 +127,21 @@ class AnalysisService:
         指标波动归因分析
         """
         try:
-            # 构建分析提示
-            prompt = f"""
-分析{company}在{period}期间{indicator}的{change_type}原因。
-
+            # 构建分析提示（使用安全 prompt 构建）
+            system_instruction = """分析指定公司在指定期间内某个指标的变化原因。
 请从以下维度分析：
 1. 主要影响因素
 2. 各因素的影响程度（百分比）
 3. 关键驱动因素
 
-返回JSON格式的分析结果。
-"""
+返回JSON格式的分析结果。"""
+
+            user_input = f"公司：{sanitize_user_input(company)}\n指标：{sanitize_user_input(indicator)}\n期间：{sanitize_user_input(period)}\n变化类型：{sanitize_user_input(change_type)}"
+
+            prompt = build_safe_prompt(
+                system_instruction=system_instruction,
+                user_input=user_input,
+            )
             
             # 使用XGBoost模型进行归因分析（如果可用）
             # 否则使用LLM
@@ -364,20 +369,24 @@ class AnalysisService:
             docs = await retrieval.retrieve(query, top_k=20)
             
             # 提取关键信息
-            prompt = f"""
-分析以下财报内容，提取关键信息：
-
-财报内容：
-{chr(10).join([d.get("content", "")[:1000] for d in docs[:10]])}
-
+            system_instruction = """分析以下财报内容，提取关键信息：
 请提取：
 1. 管理层讨论与分析要点
 2. 风险提示
 3. 业务战略调整
 4. 关键财务数据变化
 
-返回结构化JSON格式。
-"""
+返回结构化JSON格式。"""
+
+            report_content = chr(10).join([d.get("content", "")[:1000] for d in docs[:10]])
+            user_input = f"公司：{sanitize_user_input(company)}\n年份：{year}\n报告类型：{sanitize_user_input(report_type)}"
+            context_data = f"财报内容：\n{report_content}"
+
+            prompt = build_safe_prompt(
+                system_instruction=system_instruction,
+                user_input=user_input,
+                context_data=context_data,
+            )
             
             interpretation = await self.llm_service.generate(
                 prompt=prompt,
@@ -417,18 +426,10 @@ class AnalysisService:
             macro_query = "GDP 利率 通胀率"
             macro_results = await self.knowledge_graph.search(macro_query, top_k=10)
             
-            # 构建预测提示
-            prompt = f"""
-基于以下历史数据和宏观经济指标，预测{company}未来{years}年的{indicator}：
-
-历史数据：
-{historical_results[:10]}
-
-宏观经济指标：
-{macro_results[:5]}
-
+            # 构建预测提示（使用安全 prompt 构建）
+            system_instruction = f"""基于以下历史数据和宏观经济指标，预测指定公司未来{years}年的指定指标。
 请预测：
-1. 未来{years}年的{indicator}值
+1. 未来{years}年的指标值
 2. 预测趋势（上升/下降/平稳）
 3. 置信度（0-100%）
 4. 主要影响因素
@@ -437,8 +438,16 @@ class AnalysisService:
 - predicted_values: [{{year: 2024, value: xxx, confidence: 80%}}, ...]
 - trend: "上升/下降/平稳"
 - confidence: 80
-- factors: ["影响因素1", "影响因素2", ...]
-"""
+- factors: ["影响因素1", "影响因素2", ...]"""
+
+            user_input = f"公司：{sanitize_user_input(company)}\n指标：{sanitize_user_input(indicator)}\n预测年数：{years}"
+            context_data = f"历史数据：\n{historical_results[:10]}\n\n宏观经济指标：\n{macro_results[:5]}"
+
+            prompt = build_safe_prompt(
+                system_instruction=system_instruction,
+                user_input=user_input,
+                context_data=context_data,
+            )
             
             prediction = await self.llm_service.generate(
                 prompt=prompt,

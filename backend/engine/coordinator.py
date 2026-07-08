@@ -9,6 +9,7 @@ from loguru import logger
 
 from backend.engine.llm_service import LLMService
 from backend.engine.retrieval import RetrievalEngine
+from backend.core.prompt_security import build_safe_prompt, sanitize_user_input
 
 
 @dataclass
@@ -113,22 +114,22 @@ class Coordinator:
     ) -> Dict[str, Any]:
         """理解用户意图"""
         # 使用LLM提取意图和实体
-        prompt = f"""
-分析以下问题的意图和关键信息：
-问题：{query}
-
-对话历史：
-{self._format_history(context.history[-3:])}
-
-请提取：
+        system_instruction = """分析以下问题的意图和关键信息，请提取：
 1. 意图类型（指标查询/对比分析/趋势分析/归因分析/风险分析）
 2. 公司名称或代码
 3. 时间范围（年份、季度）
 4. 指标名称
 5. 分析类型（同比/环比/绝对值）
 
-以JSON格式返回。
-"""
+以JSON格式返回。"""
+
+        context_data = f"对话历史：\n{self._format_history(context.history[-3:])}"
+
+        prompt = build_safe_prompt(
+            system_instruction=system_instruction,
+            user_input=query,
+            context_data=context_data,
+        )
         
         response = await self.llm_service.generate(
             prompt=prompt,
@@ -175,26 +176,21 @@ class Coordinator:
             f"来源：{doc.get('source', '')}\n内容：{doc.get('content', '')[:500]}"
             for doc in retrieved_docs[:5]
         ])
-        
-        prompt = f"""
-你是一个专业的财务分析师助手。基于以下知识回答问题。
 
-知识库内容：
-{knowledge_text}
-
-对话历史：
-{context_text}
-
-当前问题：{query}
-
-请基于知识库内容回答问题，要求：
+        system_instruction = """你是一个专业的财务分析师助手。基于以下知识回答问题。
+要求：
 1. 回答准确、专业
 2. 如果知识库中没有相关信息，明确说明
 3. 回答简洁明了，控制在200字以内
-4. 可以引用数据时，请提供具体数值
+4. 可以引用数据时，请提供具体数值"""
 
-回答：
-"""
+        context_data = f"知识库内容：\n{knowledge_text}\n\n对话历史：\n{context_text}"
+
+        prompt = build_safe_prompt(
+            system_instruction=system_instruction,
+            user_input=query,
+            context_data=context_data,
+        )
         
         answer = await self.llm_service.generate(
             prompt=prompt,
