@@ -7,8 +7,9 @@ from typing import List, Optional
 
 from backend.api.deps import get_analysis_service
 from backend.services.analysis_service import AnalysisService
+from backend.core.auth import get_current_user
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 class DeepInterpretationRequest(BaseModel):

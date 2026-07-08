@@ -9,7 +9,7 @@ from backend.api.deps import get_agent_manager
 from backend.services.agents import AgentManager
 from backend.core.auth import get_current_user, require_role, UserRole
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 class AgentExecuteRequest(BaseModel):

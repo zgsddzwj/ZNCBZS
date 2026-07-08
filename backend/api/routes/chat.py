@@ -7,8 +7,9 @@ from typing import List, Optional
 from backend.engine.coordinator import Coordinator
 from backend.engine.coordinator import ConversationContext
 from backend.api.deps import get_coordinator
+from backend.core.auth import get_current_user
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 class ChatMessage(BaseModel):

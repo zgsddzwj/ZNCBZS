@@ -1,12 +1,13 @@
 """
 财报上传和解析API
 """
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from pydantic import BaseModel, Field
 from typing import Optional, Literal
 from backend.data.processor import DocumentProcessor
+from backend.core.auth import get_current_user
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
 class UploadResponse(BaseModel):
