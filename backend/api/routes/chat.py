@@ -9,6 +9,7 @@ from backend.engine.coordinator import ConversationContext
 from backend.api.deps import get_coordinator
 from backend.core.auth import get_current_user
 from backend.core.rate_limit import limiter
+from loguru import logger
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
@@ -90,7 +91,8 @@ async def chat_query(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"处理查询失败: {str(e)}")
+        logger.error(f"处理查询失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="服务器内部错误，请稍后重试")
 
 
 @router.get("/history/{conversation_id}", response_model=HistoryResponse, summary="获取指定对话的历史记录")
@@ -105,7 +107,8 @@ async def get_conversation_history(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取历史记录失败: {str(e)}")
+        logger.error(f"获取历史记录失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="服务器内部错误，请稍后重试")
 
 
 @router.delete("/history/{conversation_id}", response_model=StatusResponse, summary="清除指定对话的历史记录")
@@ -120,4 +123,5 @@ async def clear_conversation_history(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"清除历史记录失败: {str(e)}")
+        logger.error(f"清除历史记录失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="服务器内部错误，请稍后重试")

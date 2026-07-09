@@ -75,7 +75,7 @@ async def integrate_bank_reports(
         
     except Exception as e:
         logger.error(f"银行财报集成失败: {e}")
-        raise HTTPException(status_code=500, detail=f"集成失败：{str(e)}")
+        raise HTTPException(status_code=500, detail="集成失败，请稍后重试")
 
 
 @router.post("/macro-data", summary="集成宏观经济数据")
@@ -107,7 +107,7 @@ async def integrate_macro_data(
         
     except Exception as e:
         logger.error(f"宏观经济数据集成失败: {e}")
-        raise HTTPException(status_code=500, detail=f"集成失败：{str(e)}")
+        raise HTTPException(status_code=500, detail="集成失败，请稍后重试")
 
 
 @router.post("/policy-files", summary="集成政策文件")
@@ -139,7 +139,7 @@ async def integrate_policy_files(
         
     except Exception as e:
         logger.error(f"政策文件集成失败: {e}")
-        raise HTTPException(status_code=500, detail=f"集成失败：{str(e)}")
+        raise HTTPException(status_code=500, detail="集成失败，请稍后重试")
 
 
 @router.post("/full", summary="完整数据集成")
@@ -173,7 +173,7 @@ async def full_integration(
         
     except Exception as e:
         logger.error(f"完整数据集成失败: {e}")
-        raise HTTPException(status_code=500, detail=f"集成失败：{str(e)}")
+        raise HTTPException(status_code=500, detail="集成失败，请稍后重试")
 
 
 @router.get("/status", summary="获取数据集成状态")
@@ -195,5 +195,5 @@ async def get_integration_status(
         
     except Exception as e:
         logger.error(f"获取集成状态失败: {e}")
-        raise HTTPException(status_code=500, detail=f"获取状态失败：{str(e)}")
+        raise HTTPException(status_code=500, detail="获取状态失败，请稍后重试")
 

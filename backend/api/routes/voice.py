@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from typing import Optional
 from backend.services.voice_service import VoiceService
 from backend.core.auth import get_current_user
+from loguru import logger
 
 router = APIRouter()
 voice_service = VoiceService()
@@ -39,7 +40,8 @@ async def recognize_speech(
         return {"text": text}
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"语音处理失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="服务器内部错误，请稍后重试")
 
 
 @router.post("/synthesize")
@@ -64,7 +66,8 @@ async def synthesize_speech(
         )
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"语音处理失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="服务器内部错误，请稍后重试")
 
 
 @router.post("/query", response_model=VoiceQueryResponse)
@@ -85,5 +88,6 @@ async def voice_query(
         return VoiceQueryResponse(**result)
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"语音处理失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="服务器内部错误，请稍后重试")
 

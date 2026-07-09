@@ -4,6 +4,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
+from loguru import logger
 
 from backend.api.deps import get_agent_manager
 from backend.services.agents import AgentManager
@@ -60,7 +61,8 @@ async def execute_agent(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"智能体执行失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="服务器内部错误，请稍后重试")
 
 
 @router.post("/create", dependencies=[Depends(require_role(UserRole.ADMIN, UserRole.SENIOR))])
@@ -92,7 +94,8 @@ async def create_custom_agent(
         }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"智能体创建失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="服务器内部错误，请稍后重试")
 
 
 @router.get("/{agent_id}")

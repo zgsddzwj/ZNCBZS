@@ -8,6 +8,7 @@ from typing import List, Optional
 from backend.api.deps import get_analysis_service
 from backend.services.analysis_service import AnalysisService
 from backend.core.auth import get_current_user
+from loguru import logger
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
@@ -68,7 +69,8 @@ async def analyze_attribution(
         )
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"分析失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="服务器内部错误，请稍后重试")
 
 
 @router.post("/risk")
@@ -89,7 +91,8 @@ async def analyze_risk(
         )
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"分析失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="服务器内部错误，请稍后重试")
 
 
 @router.post("/industry")
@@ -110,7 +113,8 @@ async def compare_industry(
         )
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"分析失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="服务器内部错误，请稍后重试")
 
 
 @router.get("/trend/{company}")
@@ -133,7 +137,8 @@ async def analyze_trend(
         )
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"分析失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="服务器内部错误，请稍后重试")
 
 
 @router.post("/interpretation")
@@ -154,7 +159,8 @@ async def deep_interpretation(
         )
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"分析失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="服务器内部错误，请稍后重试")
 
 
 @router.post("/predict")
@@ -175,4 +181,5 @@ async def predict_trend(
         )
         return result
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"分析失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="服务器内部错误，请稍后重试")

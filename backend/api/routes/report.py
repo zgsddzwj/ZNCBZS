@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from backend.core.auth import get_current_user
+from loguru import logger
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
@@ -77,7 +78,8 @@ async def query_report(query: ReportQuery):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"查询失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="服务器内部错误，请稍后重试")
 
 
 @router.post("/indicators", response_model=IndicatorResponse)
@@ -105,7 +107,8 @@ async def query_indicator(query: IndicatorQuery):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"查询失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="服务器内部错误，请稍后重试")
 
 
 @router.post("/compare", response_model=ComparisonResponse)
@@ -130,7 +133,8 @@ async def compare_companies(query: ComparisonQuery):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"查询失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="服务器内部错误，请稍后重试")
 
 
 @router.get("/list", response_model=ReportListResponse)
@@ -159,4 +163,5 @@ async def list_reports(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"查询失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="服务器内部错误，请稍后重试")
