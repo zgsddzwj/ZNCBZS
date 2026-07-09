@@ -4,32 +4,36 @@ import { ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import Layout from './components/Layout'
 import GlobalLoading from './components/GlobalLoading'
+import ErrorBoundary from './components/ErrorBoundary'
 import ChatPage from './pages/ChatPage'
 import ReportPage from './pages/ReportPage'
 import AnalysisPage from './pages/AnalysisPage'
 import UploadPage from './pages/UploadPage'
 import AgentsPage from './pages/AgentsPage'
+import NotFound from './pages/NotFound'
 import './App.css'
 
 function App() {
   return (
     <ConfigProvider locale={zhCN}>
-      <Router>
-        <GlobalLoading />
-        <Layout>
-          <Routes>
-            <Route path="/" element={<ChatPage />} />
-            <Route path="/chat" element={<ChatPage />} />
-            <Route path="/reports" element={<ReportPage />} />
-            <Route path="/analysis" element={<AnalysisPage />} />
-            <Route path="/agents" element={<AgentsPage />} />
-            <Route path="/upload" element={<UploadPage />} />
-          </Routes>
-        </Layout>
-      </Router>
+      <ErrorBoundary>
+        <Router>
+          <GlobalLoading />
+          <Layout>
+            <Routes>
+              <Route path="/" element={<ChatPage />} />
+              <Route path="/chat" element={<ChatPage />} />
+              <Route path="/reports" element={<ReportPage />} />
+              <Route path="/analysis" element={<AnalysisPage />} />
+              <Route path="/agents" element={<AgentsPage />} />
+              <Route path="/upload" element={<UploadPage />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Layout>
+        </Router>
+      </ErrorBoundary>
     </ConfigProvider>
   )
 }
 
 export default App
-

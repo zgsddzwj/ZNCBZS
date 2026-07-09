@@ -3,6 +3,7 @@
 """
 import time
 import traceback
+import re
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -11,6 +12,12 @@ from loguru import logger
 
 # 默认最大请求体大小 (10MB，文件上传端点可单独配置)
 DEFAULT_MAX_BODY_SIZE = 10 * 1024 * 1024
+
+# 敏感字段模式（日志中会被脱敏）
+_SENSITIVE_PATTERNS = [
+    re.compile(r'(token|password|secret|key|authorization)=[^&\s]+', re.IGNORECASE),
+    re.compile(r'Bearer\s+[\w\-]+\.[\w\-]+\.[\w\-]+', re.IGNORECASE),
+]
 
 
 class GlobalExceptionHandler(BaseHTTPMiddleware):
@@ -72,7 +79,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         if any(request.url.path.startswith(prefix) for prefix in self.SKIP_PATH_PREFIXES):
             return await call_next(request)
 
-        # 记录请求信息
+        # 记录请求信息（脱敏处理，不记录完整 URL 中的查询参数）
         client_ip = request.client.host if request.client else "unknown"
         logger.info(
             f"📥 请求开始 | {client_ip} | {request.method} {request.url.path}"
@@ -92,6 +99,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             f"{request.method} {request.url.path} | "
             f"耗时 {process_time:.3f}s"
         )
+
+
+
 
         # 在响应头中添加耗时信息（方便调试）
         response.headers["X-Process-Time"] = f"{process_time:.3f}"
