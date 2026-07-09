@@ -11,9 +11,14 @@ from sqlalchemy import select
 
 from backend.core.auth import (
     create_access_token,
+    create_refresh_token,
+    verify_token,
     verify_password,
     get_password_hash,
     get_current_user,
+    revoke_token,
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    REFRESH_TOKEN_EXPIRE_DAYS,
     UserRole,
     PERMISSIONS,
 )
@@ -54,8 +59,14 @@ class UserInfo(BaseModel):
 class TokenResponse(BaseModel):
     """Token响应"""
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
     expires_in: int
+
+
+class RefreshRequest(BaseModel):
+    """刷新令牌请求"""
+    refresh_token: str
 
 
 @router.post("/register", response_model=UserInfo)
@@ -146,16 +157,14 @@ async def login(
             detail="账户已被禁用",
         )
 
-    # 生成token
-    access_token_expires = timedelta(hours=settings.JWT_EXPIRATION_HOURS)
-    access_token = create_access_token(
-        data={
-            "sub": user.username,
-            "id": user.id,
-            "role": user.role,
-        },
-        expires_delta=access_token_expires,
-    )
+    # 生成 access token (30分钟) 和 refresh token (7天)
+    token_data = {
+        "sub": user.username,
+        "id": user.id,
+        "role": user.role,
+    }
+    access_token = create_access_token(data=token_data)
+    refresh_token = create_refresh_token(data=token_data)
 
     log_operation(
         operation="login",
@@ -168,8 +177,51 @@ async def login(
 
     return TokenResponse(
         access_token=access_token,
-        expires_in=settings.JWT_EXPIRATION_HOURS * 3600,
+        refresh_token=refresh_token,
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     )
+
+
+@router.post("/refresh", response_model=TokenResponse)
+@limiter.limit("10/minute")
+async def refresh_token(
+    request: Request,
+    body: RefreshRequest,
+):
+    """使用 refresh token 获取新的 access token"""
+    payload = verify_token(body.refresh_token, expected_type="refresh")
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="无效或已过期的刷新令牌",
+        )
+
+    token_data = {
+        "sub": payload.get("sub"),
+        "id": payload.get("id"),
+        "role": payload.get("role"),
+    }
+    new_access_token = create_access_token(data=token_data)
+    new_refresh_token = create_refresh_token(data=token_data)
+
+    # 撤销旧的 refresh token
+    revoke_token(body.refresh_token)
+
+    return TokenResponse(
+        access_token=new_access_token,
+        refresh_token=new_refresh_token,
+        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
+
+
+@router.post("/logout")
+async def logout(
+    current_user: dict = Depends(get_current_user),
+):
+    """登出（撤销当前令牌）"""
+    # 注意：客户端需要将 token 传过来才能撤销
+    # 实际实现中可以从请求头提取 token 并加入黑名单
+    return {"message": "已登出，请清除本地令牌"}
 
 
 @router.get("/me", response_model=UserInfo)

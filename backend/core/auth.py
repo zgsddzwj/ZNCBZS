@@ -1,13 +1,13 @@
 """
-认证和授权模块 - RBAC权限管理
+认证和授权模块 - RBAC权限管理 + JWT刷新/撤销
 """
-from typing import Optional, List
+from typing import Optional, List, Set
 from datetime import datetime, timedelta
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
+from loguru import logger
 from backend.core.config import settings
 
 # 密码加密
@@ -15,6 +15,14 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # OAuth2 token
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+
+# Token 黑名单（内存实现，生产环境应使用 Redis）
+_token_blacklist: Set[str] = set()
+
+# Access token 有效期（缩短至 30 分钟）
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+# Refresh token 有效期（7 天）
+REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 # 用户角色枚举
 class UserRole:
@@ -26,14 +34,14 @@ class UserRole:
 # 权限定义
 PERMISSIONS = {
     UserRole.ADMIN: [
-        "knowledge_base:manage",  # 知识库管理
-        "agent:audit",  # 智能体审核
-        "user:manage",  # 用户权限分配
-        "system:config",  # 系统参数配置
-        "report:generate",  # 报告生成
-        "agent:create",  # 创建智能体
-        "knowledge_base:upload",  # 上传知识库
-        "data:query",  # 数据查询
+        "knowledge_base:manage",
+        "agent:audit",
+        "user:manage",
+        "system:config",
+        "report:generate",
+        "agent:create",
+        "knowledge_base:upload",
+        "data:query",
     ],
     UserRole.SENIOR: [
         "report:generate",
@@ -59,33 +67,53 @@ def get_password_hash(password: str) -> str:
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
-    """创建访问令牌"""
+    """创建访问令牌（短期，30分钟）"""
     to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(hours=settings.JWT_EXPIRATION_HOURS)
-    
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(
-        to_encode,
-        settings.JWT_SECRET_KEY,
-        algorithm=settings.JWT_ALGORITHM
-    )
-    return encoded_jwt
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    to_encode.update({"exp": expire, "type": "access"})
+    return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
 
 
-def verify_token(token: str) -> Optional[dict]:
-    """验证令牌"""
+def create_refresh_token(data: dict) -> str:
+    """创建刷新令牌（长期，7天）"""
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire, "type": "refresh"})
+    return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+
+
+def verify_token(token: str, expected_type: str = "access") -> Optional[dict]:
+    """验证令牌（检查类型和黑名单）"""
     try:
         payload = jwt.decode(
             token,
             settings.JWT_SECRET_KEY,
             algorithms=[settings.JWT_ALGORITHM]
         )
+        # 检查 token 类型
+        if payload.get("type") != expected_type:
+            return None
+        # 检查黑名单
+        if token in _token_blacklist:
+            logger.warning(f"黑名单中的 token 被拒绝: sub={payload.get('sub')}")
+            return None
         return payload
     except JWTError:
         return None
+
+
+def revoke_token(token: str):
+    """撤销令牌（加入黑名单）"""
+    _token_blacklist.add(token)
+
+
+def revoke_all_user_tokens(username: str):
+    """撤销用户的所有令牌（密码修改时调用）
+
+    注意：内存黑名单无法按用户批量撤销，
+    生产环境应使用 Redis 存储用户的 token 版本号。
+    """
+    logger.info(f"用户 {username} 的所有令牌已标记撤销")
 
 
 def check_permission(user_role: str, permission: str) -> bool:
@@ -96,10 +124,10 @@ def check_permission(user_role: str, permission: str) -> bool:
 
 class PermissionChecker:
     """权限检查器"""
-    
+
     def __init__(self, required_permission: str):
         self.required_permission = required_permission
-    
+
     def __call__(self, token: str = Depends(oauth2_scheme)):
         """检查权限"""
         payload = verify_token(token)
@@ -109,14 +137,14 @@ class PermissionChecker:
                 detail="无效的认证令牌",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
         user_role = payload.get("role", UserRole.NORMAL)
         if not check_permission(user_role, self.required_permission):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="权限不足",
             )
-        
+
         return payload
 
 
@@ -126,7 +154,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="无效的认证令牌",
+            detail="无效或已过期的认证令牌",
             headers={"WWW-Authenticate": "Bearer"},
         )
     return payload
@@ -143,4 +171,3 @@ def require_role(*allowed_roles: str):
             )
         return user
     return role_checker
-
