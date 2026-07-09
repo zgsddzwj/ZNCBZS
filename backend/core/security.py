@@ -107,23 +107,41 @@ class OperationLogger:
         ip: Optional[str] = None,
         success: bool = True,
     ):
-        """记录操作日志"""
+        """记录操作日志（同时写入日志文件和数据库）"""
         log_entry = {
             "timestamp": datetime.now().isoformat(),
             "user_id": user_id,
             "username": username,
-            "operation": operation,  # 如：login, query, generate_report
-            "resource": resource,  # 如：/api/v1/chat/query
+            "operation": operation,
+            "resource": resource,
             "details": details or {},
             "ip": ip,
             "success": success,
         }
         
-        # 写入日志文件（保留至少1年）
+        # 写入日志文件
         logger.info(f"操作日志: {json.dumps(log_entry, ensure_ascii=False)}")
         
-        # 同时保存到数据库（如果需要）
-        # TODO: 实现数据库存储
+        # 持久化到数据库
+        try:
+            from backend.data.database import SessionLocal
+            from backend.models.operation_log import OperationLog
+            
+            db = SessionLocal()
+            log_record = OperationLog(
+                user_id=user_id,
+                username=username,
+                operation=operation,
+                resource=resource,
+                details=json.dumps(details or {}, ensure_ascii=False),
+                ip=ip,
+                success=success,
+            )
+            db.add(log_record)
+            db.commit()
+            db.close()
+        except Exception as e:
+            logger.warning(f"操作日志数据库写入失败（仅记录到日志文件）: {e}")
 
 
 # 全局操作日志实例
