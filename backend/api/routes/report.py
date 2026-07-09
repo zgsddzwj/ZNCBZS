@@ -5,6 +5,9 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from backend.core.auth import get_current_user
+from backend.api.deps import get_report_service, get_analysis_service
+from backend.services.report_service import ReportService
+from backend.services.analysis_service import AnalysisService
 from loguru import logger
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
@@ -60,14 +63,14 @@ class ComparisonResponse(BaseModel):
 
 
 @router.post("/query", response_model=IndicatorResponse)
-async def query_report(query: ReportQuery):
+async def query_report(
+    query: ReportQuery,
+    service: ReportService = Depends(get_report_service),
+):
     """
     查询财报数据
     """
     try:
-        from backend.services.report_service import ReportService
-
-        service = ReportService()
         result = await service.get_report_data(
             company=query.company,
             year=query.year,
@@ -83,7 +86,10 @@ async def query_report(query: ReportQuery):
 
 
 @router.post("/indicators", response_model=IndicatorResponse)
-async def query_indicator(query: IndicatorQuery):
+async def query_indicator(
+    query: IndicatorQuery,
+    service: AnalysisService = Depends(get_analysis_service),
+):
     """
     查询财务指标
 
@@ -92,10 +98,6 @@ async def query_indicator(query: IndicatorQuery):
     - 查询"招商银行近三年不良率"
     """
     try:
-        from backend.services.analysis_service import AnalysisService
-        from backend.api.deps import get_analysis_service
-
-        service = AnalysisService()
         result = await service.get_indicator(
             company=query.company,
             indicator=query.indicator,
@@ -112,7 +114,10 @@ async def query_indicator(query: IndicatorQuery):
 
 
 @router.post("/compare", response_model=ComparisonResponse)
-async def compare_companies(query: ComparisonQuery):
+async def compare_companies(
+    query: ComparisonQuery,
+    service: AnalysisService = Depends(get_analysis_service),
+):
     """
     跨公司对比
 
@@ -120,9 +125,6 @@ async def compare_companies(query: ComparisonQuery):
     - 对比"工行与建行的拨备覆盖率"
     """
     try:
-        from backend.services.analysis_service import AnalysisService
-
-        service = AnalysisService()
         result = await service.compare_companies(
             companies=query.companies,
             indicators=query.indicators,
@@ -144,14 +146,12 @@ async def list_reports(
     end_year: Optional[int] = Query(None, ge=2000, le=2100, description="结束年份"),
     limit: int = Query(20, ge=1, le=100, description="每页数量"),
     offset: int = Query(0, ge=0, description="偏移量"),
+    service: ReportService = Depends(get_report_service),
 ):
     """
     列出可用的财报
     """
     try:
-        from backend.services.report_service import ReportService
-
-        service = ReportService()
         result = await service.list_reports(
             company=company,
             start_year=start_year,

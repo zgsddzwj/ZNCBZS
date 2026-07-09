@@ -10,6 +10,7 @@ from backend.engine.retrieval import RetrievalEngine
 from backend.engine.coordinator import Coordinator
 from backend.services.analysis_service import AnalysisService
 from backend.services.agents import AgentManager
+from backend.services.report_service import ReportService
 
 
 @lru_cache()
@@ -74,3 +75,9 @@ def get_agent_manager() -> AgentManager:
         vector_store=get_vector_store(),
         retrieval_engine=get_retrieval_engine(),
     )
+
+
+@lru_cache()
+def get_report_service() -> ReportService:
+    """依赖注入：提供报告服务 (ReportService) 的单例。"""
+    return ReportService()
