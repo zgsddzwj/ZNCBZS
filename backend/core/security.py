@@ -8,9 +8,10 @@ from fastapi import Request, HTTPException
 from loguru import logger
 import hashlib
 import json
+from base64 import urlsafe_b64encode
+from cryptography.fernet import Fernet
 from backend.core.config import settings
 
-# AES-256加密（使用Fernet，基于AES-128，但可以扩展）
 _encryption_key: Optional[bytes] = None
 
 
@@ -18,13 +19,14 @@ def get_encryption_key() -> bytes:
     """获取加密密钥"""
     global _encryption_key
     if _encryption_key is None:
-        # 从配置或环境变量获取密钥
-        key_str = settings.SECRET_KEY
-        # 生成32字节密钥
-        key = hashlib.sha256(key_str.encode()).digest()
-        # Fernet需要base64编码的32字节密钥
-        from base64 import urlsafe_b64encode
-        _encryption_key = urlsafe_b64encode(key)
+        # 优先使用独立的 ENCRYPTION_KEY（Fernet 格式的 base64 密钥）
+        if settings.ENCRYPTION_KEY:
+            _encryption_key = settings.ENCRYPTION_KEY.encode()
+        else:
+            # 向后兼容：从 SECRET_KEY 派生（不推荐，生产环境应使用独立密钥）
+            key_str = settings.SECRET_KEY
+            key = hashlib.sha256(key_str.encode()).digest()
+            _encryption_key = urlsafe_b64encode(key)
     return _encryption_key
 
 

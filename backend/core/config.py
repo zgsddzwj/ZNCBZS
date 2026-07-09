@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str  # 必须从环境变量获取
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_HOURS: int = 24
+    ENCRYPTION_KEY: str = ""  # 独立加密密钥(Fernet格式)，必须从环境变量获取
 
     # 初始管理员配置（首次启动时自动创建）
     INITIAL_ADMIN_USERNAME: str = "admin"
