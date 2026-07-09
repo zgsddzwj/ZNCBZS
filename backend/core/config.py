@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     API_PORT: int = 8000
     FRONTEND_URL: str = "http://localhost:3000"
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:8080"]
+    ALLOWED_HOSTS: List[str] = ["*"]  # 生产环境应设置为具体域名
     
     # 大模型配置
     OPENAI_API_KEY: str = ""

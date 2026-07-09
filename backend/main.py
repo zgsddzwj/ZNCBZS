@@ -78,8 +78,11 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="基于大模型 + 知识增强的财务分析工具",
+    description="基于大模型 + 知识增强的财务分析工具\n\n## 版本说明\n- v1: 当前版本，提供财报分析、对话查询、智能体等功能\n- v2: 规划中，将支持多租户和自定义分析模型",
     lifespan=lifespan,
+    docs_url="/docs" if settings.DEBUG else None,
+    redoc_url="/redoc" if settings.DEBUG else None,
+    openapi_url="/openapi.json" if settings.DEBUG else None,
 )
 
 # 速率限制
@@ -92,16 +95,22 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
 # 中间件注册（注意顺序：最后注册的最先执行）
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+
+# TrustedHost 中间件（生产环境必须配置）
+if not settings.DEBUG:
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.ALLOWED_HOSTS)
+
 app.add_middleware(GlobalExceptionHandler)
 app.add_middleware(RequestLoggingMiddleware)
 
-# CORS配置（中间件栈中最后注册的先执行，CORS应最先执行）
+# CORS配置（仅允许实际使用的方法和头部）
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
 )
 
 # 注册路由
