@@ -5,11 +5,28 @@ from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from datetime import datetime
 import uuid
+import json
 from loguru import logger
 
 from backend.engine.llm_service import LLMService
 from backend.engine.retrieval import RetrievalEngine
 from backend.core.prompt_security import build_safe_prompt, sanitize_user_input
+from backend.core.config import settings
+
+# 尝试导入 Redis，不可用时回退到内存
+_redis_client = None
+try:
+    import redis
+    _redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+    _redis_client.ping()
+    logger.info("对话历史 Redis 连接成功")
+except Exception as e:
+    logger.warning(f"Redis 不可用，对话历史将存储在内存中: {e}")
+    _redis_client = None
+
+# 对话历史 TTL（24小时自动过期）
+_CONVERSATION_TTL = 86400
+_REDIS_KEY_PREFIX = "conversation:"
 
 
 @dataclass
@@ -42,6 +59,41 @@ class Coordinator:
         self.llm_service = llm_service or LLMService()
         self.retrieval_engine = retrieval_engine or RetrievalEngine()
         self.conversations: Dict[str, ConversationContext] = {}
+        self._redis = _redis_client
+
+    def _save_conversation(self, context: ConversationContext):
+        """保存对话到 Redis（或回退到内存）"""
+        if self._redis:
+            key = f"{_REDIS_KEY_PREFIX}{context.conversation_id}"
+            self._redis.setex(
+                key,
+                _CONVERSATION_TTL,
+                json.dumps(context.history, ensure_ascii=False),
+            )
+        else:
+            self.conversations[context.conversation_id] = context
+
+    def _load_conversation(self, conversation_id: str) -> Optional[ConversationContext]:
+        """从 Redis（或内存）加载对话"""
+        if self._redis:
+            key = f"{_REDIS_KEY_PREFIX}{conversation_id}"
+            data = self._redis.get(key)
+            if data:
+                return ConversationContext(
+                    conversation_id=conversation_id,
+                    history=json.loads(data),
+                )
+            return None
+        else:
+            return self.conversations.get(conversation_id)
+
+    def _delete_conversation(self, conversation_id: str):
+        """删除对话"""
+        if self._redis:
+            key = f"{_REDIS_KEY_PREFIX}{conversation_id}"
+            self._redis.delete(key)
+        else:
+            self.conversations.pop(conversation_id, None)
     
     async def process_query(
         self,
@@ -61,11 +113,12 @@ class Coordinator:
             # 获取或创建对话上下文
             if context is None:
                 context = ConversationContext()
-            elif context.conversation_id in self.conversations:
-                context = self.conversations[context.conversation_id]
+            elif context.conversation_id:
+                loaded = self._load_conversation(context.conversation_id)
+                context = loaded or context
             
             # 保存上下文
-            self.conversations[context.conversation_id] = context
+            self._save_conversation(context)
             
             # 添加用户消息
             context.add_message("user", query)
@@ -89,6 +142,9 @@ class Coordinator:
             
             # 添加助手回复
             context.add_message("assistant", answer)
+            
+            # 保存更新后的上下文
+            self._save_conversation(context)
             
             return {
                 "answer": answer,
@@ -295,12 +351,12 @@ class Coordinator:
     
     async def get_conversation_history(self, conversation_id: str) -> List[Dict[str, Any]]:
         """获取对话历史"""
-        if conversation_id in self.conversations:
-            return self.conversations[conversation_id].history
+        context = self._load_conversation(conversation_id)
+        if context:
+            return context.history
         return []
     
     async def clear_conversation_history(self, conversation_id: str):
         """清空对话历史"""
-        if conversation_id in self.conversations:
-            del self.conversations[conversation_id]
+        self._delete_conversation(conversation_id)
 
