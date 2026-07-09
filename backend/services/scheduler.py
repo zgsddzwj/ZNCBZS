@@ -86,6 +86,7 @@ class DataScheduler:
         self.data_service = DataIntegrationService()
         self.running = False
         self.tasks = {}
+        self._task_refs = []  # 存储 asyncio.Task 引用用于优雅关闭
         self.alert_service = AlertService()
 
         # 执行日志
@@ -140,14 +141,38 @@ class DataScheduler:
         self.running = True
         logger.info("数据调度器已启动")
 
-        # 启动定时任务
-        asyncio.create_task(self._daily_update_task())
-        asyncio.create_task(self._weekly_update_task())
+        # 启动定时任务并保存引用
+        self._task_refs = [
+            asyncio.create_task(self._daily_update_task()),
+            asyncio.create_task(self._weekly_update_task()),
+        ]
 
     async def stop(self):
-        """停止调度器"""
+        """优雅停止调度器"""
+        if not self.running:
+            return
+
         self.running = False
-        logger.info("数据调度器已停止")
+        logger.info("调度器正在停止，等待正在执行的任务完成...")
+
+        # 取消所有任务
+        for task in self._task_refs:
+            task.cancel()
+
+        # 等待任务完成（最多等待 30 秒）
+        if self._task_refs:
+            try:
+                await asyncio.wait_for(
+                    asyncio.gather(*self._task_refs, return_exceptions=True),
+                    timeout=30.0,
+                )
+            except asyncio.TimeoutError:
+                logger.warning("调度器停止超时，部分任务可能仍在执行")
+            except Exception as e:
+                logger.warning(f"调度器停止时发生异常: {e}")
+
+        self._task_refs.clear()
+        logger.info("数据调度器已完全停止")
 
     async def _daily_update_task(self):
         """每日更新任务"""

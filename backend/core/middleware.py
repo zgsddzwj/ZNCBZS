@@ -1,5 +1,5 @@
 """
-全局中间件 - 异常处理、请求日志、耗时统计
+全局中间件 - 异常处理、请求日志、耗时统计、安全响应头、请求体限制
 """
 import time
 import traceback
@@ -8,6 +8,9 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from loguru import logger
+
+# 默认最大请求体大小 (10MB，文件上传端点可单独配置)
+DEFAULT_MAX_BODY_SIZE = 10 * 1024 * 1024
 
 
 class GlobalExceptionHandler(BaseHTTPMiddleware):
@@ -93,4 +96,45 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         # 在响应头中添加耗时信息（方便调试）
         response.headers["X-Process-Time"] = f"{process_time:.3f}"
 
+        return response
+
+
+class RequestBodySizeLimitMiddleware(BaseHTTPMiddleware):
+    """
+    请求体大小限制中间件
+    
+    防止超大请求体导致内存耗尽，默认限制 10MB。
+    """
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        content_length = request.headers.get("content-length")
+        if content_length and int(content_length) > DEFAULT_MAX_BODY_SIZE:
+            return JSONResponse(
+                status_code=413,
+                content={
+                    "success": False,
+                    "error": {
+                        "code": 413,
+                        "message": "请求体过大",
+                        "type": "payload_too_large",
+                    },
+                },
+            )
+        return await call_next(request)
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """
+    安全响应头中间件
+    
+    添加标准安全响应头，增强应用安全性。
+    """
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
         return response

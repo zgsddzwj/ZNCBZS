@@ -12,7 +12,7 @@ from loguru import logger
 from backend.api import router
 from backend.core.config import settings
 from backend.core.logging import setup_logging
-from backend.core.middleware import GlobalExceptionHandler, RequestLoggingMiddleware
+from backend.core.middleware import GlobalExceptionHandler, RequestLoggingMiddleware, RequestBodySizeLimitMiddleware, SecurityHeadersMiddleware
 from backend.core.auth import get_password_hash, UserRole
 from backend.core.rate_limit import limiter
 from backend.data.storage import init_storage
@@ -103,6 +103,8 @@ if not settings.DEBUG:
 
 app.add_middleware(GlobalExceptionHandler)
 app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RequestBodySizeLimitMiddleware)
 
 # CORS配置（仅允许实际使用的方法和头部）
 app.add_middleware(
@@ -131,6 +133,43 @@ async def root():
 async def health_check():
     """健康检查"""
     return {"status": "healthy"}
+
+
+@app.get("/health/deep")
+async def deep_health_check():
+    """深度健康检查 - 检查所有依赖服务状态"""
+    checks = {"status": "healthy", "services": {}}
+
+    # 检查数据库
+    try:
+        from backend.data.database import SessionLocal
+        from sqlalchemy import text
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db.close()
+        checks["services"]["database"] = "healthy"
+    except Exception as e:
+        checks["services"]["database"] = f"unhealthy: {str(e)[:50]}"
+        checks["status"] = "degraded"
+
+    # 检查 Redis
+    try:
+        import redis
+        r = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        r.ping()
+        checks["services"]["redis"] = "healthy"
+    except Exception as e:
+        checks["services"]["redis"] = f"unhealthy: {str(e)[:50]}"
+        checks["status"] = "degraded"
+
+    # 检查调度器
+    try:
+        from backend.services.scheduler import scheduler
+        checks["services"]["scheduler"] = "running" if scheduler.running else "stopped"
+    except Exception:
+        checks["services"]["scheduler"] = "unknown"
+
+    return checks
 
 
 if __name__ == "__main__":
