@@ -14,6 +14,7 @@ from backend.core.config import settings
 from backend.core.logging import setup_logging
 from backend.core.middleware import GlobalExceptionHandler, RequestLoggingMiddleware
 from backend.core.auth import get_password_hash, UserRole
+from backend.core.rate_limit import limiter
 from backend.data.storage import init_storage
 from backend.data.database import init_db, SessionLocal
 from backend.models.user import User
@@ -80,6 +81,15 @@ app = FastAPI(
     description="基于大模型 + 知识增强的财务分析工具",
     lifespan=lifespan,
 )
+
+# 速率限制
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 # 中间件注册（注意顺序：最后注册的最先执行）
 app.add_middleware(GlobalExceptionHandler)

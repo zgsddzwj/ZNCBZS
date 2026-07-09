@@ -1,13 +1,14 @@
 """
 对话式交互API
 """
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from backend.engine.coordinator import Coordinator
 from backend.engine.coordinator import ConversationContext
 from backend.api.deps import get_coordinator
 from backend.core.auth import get_current_user
+from backend.core.rate_limit import limiter
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
@@ -52,8 +53,10 @@ class StatusResponse(BaseModel):
 
 
 @router.post("/query", response_model=ChatResponse, summary="执行自然语言查询")
+@limiter.limit("20/minute")
 async def chat_query(
-    request: ChatRequest, coordinator: Coordinator = Depends(get_coordinator)
+    request: Request,
+    chat_request: ChatRequest, coordinator: Coordinator = Depends(get_coordinator)
 ):
     """
     自然语言查询

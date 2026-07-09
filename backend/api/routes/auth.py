@@ -21,6 +21,7 @@ from backend.core.config import settings
 from backend.core.security import get_client_ip, log_operation
 from backend.data.database import get_db
 from backend.models.user import User
+from backend.core.rate_limit import limiter
 from loguru import logger
 
 router = APIRouter()
@@ -114,9 +115,10 @@ async def register(
 
 
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit("5/minute")
 async def login(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
-    request: Request = None,
     db: Session = Depends(get_db),
 ):
     """用户登录（支持双因素认证）"""
