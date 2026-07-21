@@ -1,0 +1,200 @@
+/* ===== 财报管理页面样式 ===== */
+
+.report-page {
+  animation: fadeInUp 0.4s ease;
+}
+
+/* ===== 统计卡片 ===== */
+.report-stats {
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
+  transition: all var(--transition-base);
+}
+
+.stat-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.stat-card .ant-statistic-title {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.stat-card .ant-statistic-content {
+  font-size: 28px;
+}
+
+.stat-trend {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding-top: 8px;
+  border-top: 1px solid var(--border-light);
+}
+
+.stat-trend.success {
+  color: var(--success);
+}
+
+.stat-trend.warning {
+  color: var(--warning);
+}
+
+.stat-trend.accent {
+  color: var(--accent);
+}
+
+/* ===== 表格卡片 ===== */
+.report-table-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
+}
+
+.report-table-card .ant-card-head {
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.report-table-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.report-table-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.report-table-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  padding: 2px 10px;
+  border-radius: 10px;
+}
+
+/* ===== 工具栏 ===== */
+.report-toolbar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.report-search-input {
+  width: 260px;
+  flex-shrink: 0;
+}
+
+.report-search-input .ant-input {
+  border-radius: var(--radius-sm) !important;
+}
+
+.report-filter-select {
+  width: 140px;
+}
+
+/* ===== 表格样式 ===== */
+.report-table .ant-table-thead > tr > th {
+  background: var(--bg-surface) !important;
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 12px 16px;
+  border-bottom: 2px solid var(--border) !important;
+}
+
+.report-table .ant-table-tbody > tr > td {
+  padding: 14px 16px;
+  font-size: 14px;
+  color: var(--text-primary);
+  transition: background var(--transition-fast);
+}
+
+.report-table .ant-table-tbody > tr:hover > td {
+  background: var(--bg-hover) !important;
+}
+
+.report-table .ant-table-tbody > tr {
+  transition: all var(--transition-fast);
+}
+
+/* ===== 公司名称 ===== */
+.report-company {
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+}
+
+/* ===== 年份标签 ===== */
+.report-year-tag {
+  font-weight: 600;
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 4px;
+}
+
+/* ===== 报告类型标签 ===== */
+.report-type-tag {
+  font-weight: 500;
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 4px;
+}
+
+/* ===== 时间 ===== */
+.report-time {
+  color: var(--text-muted);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+}
+
+/* ===== 操作按钮 ===== */
+.report-action-btn {
+  color: var(--primary-light) !important;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.report-action-btn:hover {
+  color: var(--accent) !important;
+  background: var(--bg-hover) !important;
+}
+
+/* ===== 分页 ===== */
+.report-table .ant-pagination {
+  margin-top: 16px;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 768px) {
+  .report-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .report-search-input,
+  .report-filter-select {
+    width: 100%;
+  }
+}
