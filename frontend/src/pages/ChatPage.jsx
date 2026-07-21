@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { Input, Button, List, Card, Spin, Tag, Tooltip } from 'antd'
-import { SendOutlined, CopyOutlined, CheckOutlined, ClockCircleOutlined } from '@ant-design/icons'
+import { SendOutlined, CopyOutlined, CheckOutlined, ClockCircleOutlined, RobotOutlined } from '@ant-design/icons'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { chatQuery } from '../api/chat'
@@ -8,9 +8,6 @@ import './ChatPage.css'
 
 /**
  * 打字机效果 Hook
- * @param {string} fullText - 完整文本
- * @param {number} speed - 打字速度(ms)
- * @param {boolean} enabled - 是否启用
  */
 function useTypewriter(fullText, speed = 15, enabled = true) {
   const [displayText, setDisplayText] = useState('')
@@ -31,7 +28,6 @@ function useTypewriter(fullText, speed = 15, enabled = true) {
 
     const typeNext = () => {
       if (indexRef.current < fullText.length) {
-        // 每次渲染一个字符或一个markdown标记（优化体验）
         const nextChunk = fullText.slice(0, indexRef.current + 1)
         setDisplayText(nextChunk)
         indexRef.current += 1
@@ -143,6 +139,7 @@ export default function ChatPage() {
     "贵州茅台2023年营收同比增长多少？",
     "分析招商银行近三年不良率变化原因",
     "对比工行与建行的拨备覆盖率",
+    "预测2024年银行业整体净利润趋势",
   ]
 
   const scrollToBottom = useCallback(() => {
@@ -176,7 +173,6 @@ export default function ChatPage() {
 
       setConversationId(response.conversation_id)
 
-      // 先添加空消息占位，再触发打字机效果
       const assistantIndex = messages.length + 1
       setMessages((prev) => [
         ...prev,
@@ -189,7 +185,6 @@ export default function ChatPage() {
       ])
       setStreamingIndex(assistantIndex)
 
-      // 打字完成后清除 streaming 状态
       const typingDuration = response.response.length * 12 + 300
       setTimeout(() => {
         setStreamingIndex(null)
@@ -224,8 +219,11 @@ export default function ChatPage() {
         <div className="chat-messages">
           {messages.length === 0 && (
             <div className="chat-empty">
-              <p className="chat-welcome">欢迎使用智能财报助手！</p>
-              <p className="chat-subtitle">您可以问我：</p>
+              <div className="chat-welcome-icon">
+                <RobotOutlined />
+              </div>
+              <p className="chat-welcome">欢迎使用智能财报助手</p>
+              <p className="chat-subtitle">基于大模型与知识增强，为您提供专业的财务分析支持</p>
               <div className="quick-questions">
                 {quickQuestions.map((q, idx) => (
                   <Tag
@@ -244,12 +242,12 @@ export default function ChatPage() {
             renderItem={(item, index) => (
               <List.Item
                 className={`chat-message ${item.role}`}
-                style={{ border: 'none', padding: '12px 0' }}
+                style={{ border: 'none', padding: '8px 0' }}
               >
                 <div className={`message-bubble ${item.role} ${item.isError ? 'error' : ''}`}>
                   <div className="message-header">
                     <span className="message-role-label">
-                      {item.role === 'user' ? '您' : 'AI助手'}
+                      {item.role === 'user' ? '您' : 'AI 助手'}
                     </span>
                     <MessageTime timestamp={item.timestamp} />
                   </div>
@@ -285,7 +283,7 @@ export default function ChatPage() {
           {loading && streamingIndex === null && (
             <div className="chat-loading">
               <Spin size="small" />
-              <span className="loading-text">正在思考...</span>
+              <span className="loading-text">AI 正在思考中...</span>
             </div>
           )}
           <div ref={messagesEndRef} />
@@ -295,7 +293,7 @@ export default function ChatPage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="输入您的问题，Enter 发送，Shift+Enter 换行..."
+            placeholder="输入您的问题，Enter 发送，Shift + Enter 换行..."
             rows={2}
             disabled={loading}
             autoSize={{ minRows: 2, maxRows: 4 }}
@@ -306,10 +304,10 @@ export default function ChatPage() {
             onClick={() => handleSend()}
             loading={loading}
             disabled={!input.trim()}
-            style={{ marginTop: 8 }}
           >
             发送
           </Button>
+          <div className="input-hint">Shift + Enter 换行 &middot; Enter 发送</div>
         </div>
       </Card>
     </div>
