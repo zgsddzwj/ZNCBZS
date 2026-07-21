@@ -1,6 +1,6 @@
 import React from 'react'
-import { Layout as AntLayout, Menu, Breadcrumb } from 'antd'
-import { useNavigate, useLocation, useMatches } from 'react-router-dom'
+import { Layout as AntLayout, Menu, Breadcrumb, Badge } from 'antd'
+import { useNavigate, useLocation } from 'react-router-dom'
 import {
   MessageOutlined,
   FileTextOutlined,
@@ -8,6 +8,8 @@ import {
   UploadOutlined,
   RobotOutlined,
   HomeOutlined,
+  BankOutlined,
+  ThunderboltFilled,
 } from '@ant-design/icons'
 
 const { Header, Content, Sider, Footer } = AntLayout
@@ -68,23 +70,39 @@ export default function Layout({ children }) {
     <AntLayout style={{ minHeight: '100vh' }}>
       <Header className="app-header">
         <div className="header-left">
+          <div className="app-logo">
+            <BankOutlined />
+          </div>
           <h1 className="app-title">智能财报助手</h1>
+          <Badge
+            count="v1.0"
+            style={{
+              background: 'rgba(212, 168, 83, 0.2)',
+              color: '#d4a853',
+              border: '1px solid rgba(212, 168, 83, 0.3)',
+              fontSize: 11,
+              fontWeight: 600,
+              padding: '0 6px',
+              borderRadius: 4,
+            }}
+          />
         </div>
         <div className="header-right">
           <span className="header-status">
+            <ThunderboltFilled style={{ color: '#d4a853', fontSize: 14 }} />
             <span className="status-dot" />
             系统运行中
           </span>
         </div>
       </Header>
       <AntLayout>
-        <Sider width={200} className="app-sider">
+        <Sider width={220} className="app-sider">
           <Menu
             mode="inline"
             selectedKeys={[location.pathname]}
             items={menuItems}
             onClick={({ key }) => navigate(key)}
-            style={{ height: '100%', borderRight: 0 }}
+            style={{ height: '100%', borderRight: 0, padding: '8px' }}
           />
         </Sider>
         <Layout>
