@@ -1,0 +1,233 @@
+/* ===== 深度分析页面样式 ===== */
+
+.analysis-page {
+  animation: fadeInUp 0.4s ease;
+}
+
+/* ===== 统计指标卡片 ===== */
+.analysis-stats {
+  margin-bottom: 20px;
+}
+
+.analysis-stat-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
+  transition: all var(--transition-base);
+}
+
+.analysis-stat-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.analysis-stat-card .ant-card-body {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+}
+
+.analysis-stat-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.analysis-stat-info {
+  flex: 1;
+}
+
+.analysis-stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1.2;
+}
+
+.analysis-stat-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ===== 分析面板 ===== */
+.analysis-panel-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
+  overflow: hidden;
+}
+
+.analysis-panel-card .ant-card-body {
+  padding: 0;
+}
+
+/* ===== Tabs ===== */
+.analysis-tabs .ant-tabs-nav {
+  padding: 0 24px;
+  margin-bottom: 0 !important;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.analysis-tab-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.analysis-tab-label .anticon {
+  font-size: 16px;
+}
+
+/* ===== 分析内容区 ===== */
+.analysis-content {
+  padding: 24px;
+}
+
+.analysis-section {
+  animation: fadeInUp 0.3s ease;
+}
+
+/* ===== 表单栏 ===== */
+.analysis-form-bar {
+  padding: 16px 20px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+  margin-bottom: 20px;
+}
+
+.analysis-form .ant-form-item {
+  margin-bottom: 0;
+}
+
+.analysis-input .ant-input {
+  border-radius: var(--radius-sm) !important;
+}
+
+.analysis-select .ant-select-selector {
+  border-radius: var(--radius-sm) !important;
+}
+
+.analysis-btn {
+  border-radius: var(--radius-sm);
+  padding: 0 20px;
+  height: 36px;
+  font-weight: 600;
+}
+
+/* ===== 图表卡片 ===== */
+.chart-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--transition-base);
+}
+
+.chart-card:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.chart-card .ant-card-head {
+  border-bottom: 1px solid var(--border-light);
+  padding: 12px 20px;
+  min-height: 48px;
+}
+
+.chart-card .ant-card-head-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ===== 洞察卡片 ===== */
+.insight-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-base);
+}
+
+.insight-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.insight-card .ant-card-body {
+  padding: 16px 20px;
+}
+
+.insight-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+}
+
+.insight-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  margin: 0;
+}
+
+/* ===== 占位内容 ===== */
+.placeholder-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.placeholder-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+  color: var(--border);
+}
+
+.placeholder-content h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.placeholder-content p {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  max-width: 400px;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 768px) {
+  .analysis-form-bar {
+    padding: 12px;
+  }
+
+  .analysis-form .ant-form-item {
+    margin-bottom: 12px;
+  }
+
+  .analysis-content {
+    padding: 16px;
+  }
+}
