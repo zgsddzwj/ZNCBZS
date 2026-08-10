@@ -70,7 +70,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """
 
     # 不记录日志的路径前缀（静态资源、健康检查等）
-    SKIP_PATH_PREFIXES = ("/docs", "/redoc", "/openapi.json", "/health", "/")
+    SKIP_PATH_PREFIXES = ("/docs", "/redoc", "/openapi.json", "/health", "/favicon.ico")
 
     async def dispatch(self, request: Request, call_next) -> Response:
         start_time = time.time()
@@ -99,9 +99,6 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             f"{request.method} {request.url.path} | "
             f"耗时 {process_time:.3f}s"
         )
-
-
-
 
         # 在响应头中添加耗时信息（方便调试）
         response.headers["X-Process-Time"] = f"{process_time:.3f}"
