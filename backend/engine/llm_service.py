@@ -1,6 +1,7 @@
 """
 大模型服务引擎
 """
+import asyncio
 from typing import Optional, Dict, Any, List
 from openai import AsyncOpenAI
 from loguru import logger
@@ -16,6 +17,8 @@ class LLMService:
         self.deepseek_client = None
         self.finetuned_model = None  # LoRA微调模型
         self.local_embedder: Optional[SentenceTransformer] = None
+        self._embed_cache: Dict[str, list] = {}  # 嵌入向量缓存
+        self._embed_cache_max = 500  # 最大缓存条目数
         
         if settings.DEEPSEEK_API_KEY:
             self.deepseek_client = AsyncOpenAI(
@@ -60,8 +63,6 @@ class LLMService:
         """
         # 优先使用微调模型（如果是金融领域问题）
         if use_finetuned and self.finetuned_model:
-            # LoRA模型是同步的，需要包装为异步
-            import asyncio
             try:
                 loop = asyncio.get_running_loop()
             except RuntimeError:
@@ -113,7 +114,6 @@ class LLMService:
                 if attempt == max_retries - 1:
                     raise
                 logger.warning(f"生成失败，重试 {attempt + 1}/{max_retries}: {e}")
-                import asyncio
                 await asyncio.sleep(2 ** attempt)
         
         raise Exception("生成失败，已重试所有次数")
@@ -128,6 +128,11 @@ class LLMService:
         Returns:
             向量列表
         """
+        # 检查缓存
+        cache_key = text[:200]  # 截断作为缓存键
+        if cache_key in self._embed_cache:
+            return self._embed_cache[cache_key]
+
         embeddings: Optional[List[float]] = None
 
         client: Optional[AsyncOpenAI] = self.deepseek_client
@@ -156,7 +161,12 @@ class LLMService:
 
         try:
             local_embedding = self.local_embedder.encode(text, normalize_embeddings=True)
-            return local_embedding.tolist()
+            result = local_embedding.tolist()
+            # 写入缓存（LRU 策略：超过上限时删除最早的条目）
+            if len(self._embed_cache) >= self._embed_cache_max:
+                self._embed_cache.pop(next(iter(self._embed_cache)))
+            self._embed_cache[cache_key] = result
+            return result
         except Exception as e:  # pragma: no cover
             logger.error(f"本地嵌入模型生成失败: {e}")
             raise
