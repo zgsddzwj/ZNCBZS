@@ -1,11 +1,12 @@
 """
 协同引擎 - 任务调度和流程控制
 """
+import re
+import json
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from datetime import datetime
 import uuid
-import json
 from loguru import logger
 
 from backend.engine.llm_service import LLMService
@@ -193,14 +194,8 @@ class Coordinator:
             max_tokens=500,
         )
         
-        # 解析响应（这里简化处理，实际应该用JSON解析）
-        # 这里可以集成更复杂的意图识别模型
-        intent_result = {
-            "type": "query",  # 默认类型
-            "company": self._extract_company(query),
-            "indicator": self._extract_indicator(query),
-            "time": self._extract_time(query),
-        }
+        # 尝试解析 LLM 返回的 JSON 意图，失败时回退到正则提取
+        intent_result = self._parse_intent_response(response, query)
         
         return intent_result
     
@@ -320,9 +315,39 @@ class Coordinator:
                     return standard_name
         return None
     
+    def _parse_intent_response(self, response: str, query: str) -> Dict[str, Any]:
+        """解析 LLM 意图识别结果，失败时回退到正则提取"""
+        # 优先尝试 JSON 解析
+        try:
+            # 去除可能的 markdown 代码块标记
+            clean = response.strip()
+            if clean.startswith("```"):
+                clean = re.sub(r'^```(?:json)?\s*', '', clean)
+                clean = re.sub(r'\s*```$', '', clean)
+            parsed = json.loads(clean)
+            if isinstance(parsed, dict):
+                # 确保关键字段存在
+                parsed.setdefault("type", "query")
+                if not parsed.get("company"):
+                    parsed["company"] = self._extract_company(query)
+                if not parsed.get("indicator"):
+                    parsed["indicator"] = self._extract_indicator(query)
+                if not parsed.get("time"):
+                    parsed["time"] = self._extract_time(query)
+                return parsed
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.debug(f"LLM 意图 JSON 解析失败，回退到正则提取: {e}")
+
+        # 回退：正则提取
+        return {
+            "type": "query",
+            "company": self._extract_company(query),
+            "indicator": self._extract_indicator(query),
+            "time": self._extract_time(query),
+        }
+    
     def _extract_time(self, text: str) -> Optional[Dict[str, Any]]:
         """提取时间信息（支持年份、季度、半年度）"""
-        import re
         result = {}
         
         # 提取年份
