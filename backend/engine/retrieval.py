@@ -138,6 +138,9 @@ class RetrievalEngine:
         """
         self._stats["total_queries"] += 1
 
+        # 预处理查询：去除首尾空白并合并内部多余空格
+        query = " ".join(query.strip().split())
+
         # 1. 尝试从缓存获取
         if use_cache and self._cache and self.cache_enabled:
             cached = self._cache.get(query, filters, top_k, use_hybrid)
@@ -218,24 +221,22 @@ class RetrievalEngine:
         vector_results: List[Dict[str, Any]],
         keyword_results: List[Dict[str, Any]],
     ) -> List[Dict[str, Any]]:
-        """合并检索结果并去重"""
+        """合并检索结果并去重（不修改原始字典，避免缓存数据污染）"""
         seen_ids = set()
         merged = []
 
-        # 优先添加向量检索结果
+        # 优先添加向量检索结果（权重 0.7）
         for result in vector_results:
             doc_id = result.get("id")
             if doc_id and doc_id not in seen_ids:
-                result["score"] = result.get("score", 0) * 0.7
-                merged.append(result)
+                merged.append({**result, "score": result.get("score", 0) * 0.7})
                 seen_ids.add(doc_id)
 
-        # 添加关键词检索结果
+        # 添加关键词检索结果（权重 0.3）
         for result in keyword_results:
             doc_id = result.get("id")
             if doc_id and doc_id not in seen_ids:
-                result["score"] = result.get("score", 0) * 0.3
-                merged.append(result)
+                merged.append({**result, "score": result.get("score", 0) * 0.3})
                 seen_ids.add(doc_id)
 
         # 按分数排序
