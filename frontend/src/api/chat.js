@@ -1,5 +1,6 @@
 import axios from "axios";
-import { useAppStore } from "../stores/useAppStore";
+import { message } from "antd";
+import { useAppStore } from "stores/useAppStore";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
@@ -24,6 +25,10 @@ export function clearTokens() {
 
 export function getAccessToken() {
   return _accessToken;
+}
+
+export function isAuthenticated() {
+  return !!_accessToken || !!localStorage.getItem(REFRESH_TOKEN_KEY);
 }
 
 // 创建 axios 实例
@@ -140,21 +145,28 @@ api.interceptors.response.use(
       const { status, data } = response;
       switch (status) {
         case 403:
-          console.error("❌ 无权限访问该资源");
+          message.error("无权限访问该资源");
           break;
         case 404:
-          console.error("❌ 请求的资源不存在");
+          message.error("请求的资源不存在");
           break;
         case 429:
-          console.error("❌ 请求过于频繁，请稍后重试");
+          message.error("请求过于频繁，请稍后重试");
+          break;
+        case 500:
+        case 502:
+        case 503:
+          message.error("服务器暂时不可用，请稍后重试");
           break;
         default:
           if (status >= 500) {
-            console.error(`❌ 服务器错误 (${status}): ${data?.detail || "未知错误"}`);
+            message.error(`服务器错误 (${status})`);
+          } else if (status >= 400) {
+            message.error(data?.detail || `请求错误 (${status})`);
           }
       }
     } else {
-      console.error("❌ 网络连接失败，请检查网络后重试");
+      message.error("网络连接失败，请检查网络后重试");
     }
 
     return Promise.reject(error);
