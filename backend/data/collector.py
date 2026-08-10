@@ -261,29 +261,6 @@ class MacroDataCollector:
                 }
             }
         }
-        # 东方财富宏观指标参数
-        self.eastmoney_macro_params = {
-            "M2": {
-                "reportName": "RPT_MACRO_MONEY_SUPPLY",
-                "columns": {
-                    "m2_balance": "M2_BALANCE",
-                    "m2_yoy": "M2_YOY",
-                    "m1_balance": "M1_BALANCE",
-                    "m1_yoy": "M1_YOY",
-                    "m0_balance": "M0_BALANCE",
-                    "m0_yoy": "M0_YOY",
-                }
-            },
-            "社会融资规模": {
-                "reportName": "RPT_MACRO_SOCIAL_FINANCE",
-                "columns": {
-                    "social_finance_scale": "SOCIAL_FINANCE_SCALE",
-                    "social_finance_yoy": "SOCIAL_FINANCE_YOY",
-                    "rmb_loans": "RMB_LOANS",
-                    "rmb_loans_yoy": "RMB_LOANS_YOY",
-                }
-            }
-        }
 
     async def collect_macro_data(
         self,
@@ -731,62 +708,5 @@ class PolicyFileCollector:
         except Exception as e:
             logger.error(f"保存政策文件失败: {file_path}, 错误: {e}")
             return ""
-                        
-            
-        except Exception as e:
-            logger.warning(f"获取政策文件失败: {e}")
-            return []
-    
-    def _build_policy_url(
-        self,
-        source: str,
-        start_date: str,
-        end_date: str,
-    ) -> str:
-        """构建政策文件查询URL"""
-        # 根据来源返回不同URL
-        urls = {
-            "央行": "http://www.pbc.gov.cn/zhengcehuobisi/125207/125213/",
-            "银保监会": "http://www.cbirc.gov.cn/cn/view/pages/index/index.html",
-            "证监会": "http://www.csrc.gov.cn/pub/newsite/",
-        }
-        return urls.get(source, "")
-    
-    async def _parse_policy_list(
-        self,
-        response: aiohttp.ClientResponse,
-        source: str,
-    ) -> List[Dict[str, Any]]:
-        """解析政策文件列表"""
-        # 需要根据实际网站HTML结构解析
-        return []
-    
-    async def _download_policy_file(
-        self,
-        file_info: Dict[str, Any],
-        source: str,
-    ) -> str:
-        """下载政策文件"""
-        download_url = file_info.get("download_url", "")
-        if not download_url:
-            return ""
-        
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(download_url, timeout=300) as response:
-                    if response.status == 200:
-                        filename = f"{source}_{file_info.get('title', 'unknown')}.pdf"
-                        file_path = self.data_dir / filename
-                        
-                        async with aiofiles.open(file_path, 'wb') as f:
-                            content = await response.read()
-                            await f.write(content)
-                        
-                        return str(file_path)
-            
-            return ""
-            
-        except Exception as e:
-            logger.error(f"下载政策文件失败: {e}")
-            return ""
+
 
