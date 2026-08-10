@@ -176,41 +176,35 @@ class VectorStore:
         
         start_time = time.time()
         
-        try:
-            if hasattr(self, 'collection') and self._healthy:
-                search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
-                
-                results = self.collection.search(
-                    data=[query_vector],
-                    anns_field="vector",
-                    param=search_params,
-                    limit=top_k,
-                    output_fields=["text", "metadata"],
-                )
-                
-                formatted_results = []
-                for hits in results:
-                    for hit in hits:
-                        formatted_results.append({
-                            "id": hit.id,
-                            "content": hit.entity.get("text", ""),
-                            "score": hit.score,
-                            "metadata": hit.entity.get("metadata", {}),
-                        })
-                
-                elapsed = (time.time() - start_time) * 1000
-                self._stats["search_count"] += 1
-                logger.debug(f"向量检索完成: {len(formatted_results)} 条结果, 耗时 {elapsed:.1f}ms")
-                
-                return formatted_results
-            else:
-                logger.warning("FAISS检索功能待实现")
-                return []
-                
-        except Exception as e:
-            self._stats["error_count"] += 1
-            logger.error(f"向量检索失败: {e}")
+        if not (hasattr(self, 'collection') and self._healthy):
+            logger.warning("FAISS检索功能待实现")
             return []
+
+        search_params = {"metric_type": "L2", "params": {"nprobe": 10}}
+        
+        results = self.collection.search(
+            data=[query_vector],
+            anns_field="vector",
+            param=search_params,
+            limit=top_k,
+            output_fields=["text", "metadata"],
+        )
+        
+        formatted_results = []
+        for hits in results:
+            for hit in hits:
+                formatted_results.append({
+                    "id": hit.id,
+                    "content": hit.entity.get("text", ""),
+                    "score": hit.score,
+                    "metadata": hit.entity.get("metadata", {}),
+                })
+        
+        elapsed = (time.time() - start_time) * 1000
+        self._stats["search_count"] += 1
+        logger.debug(f"向量检索完成: {len(formatted_results)} 条结果, 耗时 {elapsed:.1f}ms")
+        
+        return formatted_results
     
     def get_stats(self) -> Dict[str, Any]:
         """获取存储操作统计信息"""
