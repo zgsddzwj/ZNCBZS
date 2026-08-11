@@ -57,7 +57,8 @@ class StatusResponse(BaseModel):
 @limiter.limit("20/minute")
 async def chat_query(
     request: Request,
-    chat_request: ChatRequest, coordinator: Coordinator = Depends(get_coordinator)
+    chat_request: ChatRequest,
+    coordinator: Coordinator = Depends(get_coordinator),
 ):
     """
     自然语言查询
@@ -68,12 +69,12 @@ async def chat_query(
     """
     try:
         context = ConversationContext(
-            conversation_id=request.conversation_id,
-            history=[msg.model_dump() for msg in (request.context or [])],
+            conversation_id=chat_request.conversation_id,
+            history=[msg.model_dump() for msg in (chat_request.context or [])],
         )
 
         result = await coordinator.process_query(
-            query=request.message,
+            query=chat_request.message,
             context=context,
         )
 
