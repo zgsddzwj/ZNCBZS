@@ -100,7 +100,7 @@ class Settings(BaseSettings):
         "苏农银行", "紫金银行", "青农商行", "渝农商行", "沪农商行",
         "邮储银行", "浙商银行",
     ]
-    MACRO_INDICATORS: List[str] = ["GDP", "利率", "通胀率", "M2", "社会融资规模"]
+    MACRO_INDICATORS: List[str] = ["GDP", "CPI", "利率", "M2", "社会融资规模"]
     POLICY_SOURCES: List[str] = ["央行", "银保监会", "证监会", "国家统计局"]
 
     # 数据清洗配置
