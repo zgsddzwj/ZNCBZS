@@ -9,7 +9,6 @@ from loguru import logger
 import hashlib
 import json
 from base64 import urlsafe_b64encode
-from cryptography.fernet import Fernet
 from backend.core.config import settings
 
 _encryption_key: Optional[bytes] = None
