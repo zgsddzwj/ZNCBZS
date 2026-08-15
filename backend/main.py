@@ -145,9 +145,11 @@ async def deep_health_check():
         from backend.data.database import SessionLocal
         from sqlalchemy import text
         db = SessionLocal()
-        db.execute(text("SELECT 1"))
-        db.close()
-        checks["services"]["database"] = "healthy"
+        try:
+            db.execute(text("SELECT 1"))
+            checks["services"]["database"] = "healthy"
+        finally:
+            db.close()
     except Exception as e:
         checks["services"]["database"] = f"unhealthy: {str(e)[:50]}"
         checks["status"] = "degraded"
