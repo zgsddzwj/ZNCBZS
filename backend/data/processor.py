@@ -3,6 +3,7 @@
 """
 from typing import Dict, Any, Optional
 from pathlib import Path
+import re
 import uuid
 from datetime import datetime
 from loguru import logger
@@ -190,7 +191,6 @@ class DocumentProcessor:
             for keyword in keywords:
                 if keyword in text:
                     # 提取数值（简化版）
-                    import re
                     pattern = rf"{keyword}.*?([\d,]+\.?\d*)\s*[万亿万千百十]?元"
                     matches = re.findall(pattern, text)
                     if matches:
